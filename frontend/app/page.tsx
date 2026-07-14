@@ -10,6 +10,7 @@ import {
   LineChart, Network, Landmark
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Page() {
   return (
@@ -29,16 +30,16 @@ export default function Page() {
         <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto">
           <ul className="space-y-1">
             <li>
-              <a href="#" className="flex items-center gap-3 px-3 py-2.5 bg-accent/10 text-accent rounded-lg font-medium text-sm">
+              <Link href="/" className="flex items-center gap-3 px-3 py-2.5 bg-accent/10 text-accent rounded-lg font-medium text-sm">
                 <Home className="w-4 h-4" />
                 Home
-              </a>
+              </Link>
             </li>
             <li>
-              <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
+              <Link href="/search" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
                 <Search className="w-4 h-4" />
                 Search
-              </a>
+              </Link>
             </li>
             <li>
               <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
