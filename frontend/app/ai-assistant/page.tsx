@@ -10,8 +10,8 @@ import {
   Shield, MessageSquare, RefreshCw
 } from "lucide-react";
 
+
 export default function AIAssistantPage() {
-  const [showEnhanceCard, setShowEnhanceCard] = useState(true);
   const [query, setQuery] = useState("");
 
   return (
@@ -19,122 +19,9 @@ export default function AIAssistantPage() {
       {/* Background Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1400px] h-[900px] bg-[radial-gradient(ellipse_at_50%_40%,rgba(234,88,12,0.12)_0%,transparent_70%)] pointer-events-none" />
 
-      {/* Sidebar */}
-      <aside className="w-[280px] bg-light-surface border-r border-soft-border flex flex-col fixed inset-y-0 left-0 z-20">
-        <div className="flex items-center justify-between px-6 py-8">
-          <div className="flex flex-col">
-            <span className="font-serif text-3xl font-bold tracking-tight text-primary">KAIRO</span>
-            <span className="text-accent text-[11px] font-semibold tracking-[0.2em] mt-0.5">STUDIO</span>
-          </div>
-          <button className="text-muted hover:text-primary">
-            <Menu className="w-5 h-5" />
-          </button>
-        </div>
-
-        <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto no-scrollbar">
-          <ul className="space-y-1">
-            <li>
-              <Link href="/" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                <Home className="w-4 h-4" />
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link href="/search" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                <Search className="w-4 h-4" />
-                Search Papers
-              </Link>
-            </li>
-            <li>
-              <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                <Book className="w-4 h-4" />
-                Journals & Books
-              </a>
-            </li>
-            <li>
-              <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                <User className="w-4 h-4" />
-                Authors
-              </a>
-            </li>
-            <li>
-              <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                <Building2 className="w-4 h-4" />
-                Institutions
-              </a>
-            </li>
-          </ul>
-
-          <div>
-            <h3 className="px-3 text-xs font-bold text-muted uppercase tracking-wider mb-3">Research Tools</h3>
-            <ul className="space-y-1">
-              <li>
-                <Link href="/literature-review" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                  <FileText className="w-4 h-4" />
-                  Literature Review
-                </Link>
-              </li>
-              <li>
-                <Link href="/ai-assistant" className="flex items-center gap-3 px-3 py-2.5 bg-accent/10 text-accent rounded-lg font-medium text-sm transition-colors">
-                  <Sparkles className="w-4 h-4" />
-                  AI Research Assistant
-                </Link>
-              </li>
-              <li>
-                <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                  <CheckSquare className="w-4 h-4" />
-                  Citation Manager
-                </a>
-              </li>
-              <li>
-                <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                  <FolderOpen className="w-4 h-4" />
-                  Project Workspace
-                </a>
-              </li>
-            </ul>
-          </div>
-        </nav>
-
-        {showEnhanceCard && (
-          <div className="p-4">
-            <div className="bg-paper-white rounded-xl p-5 border border-soft-border shadow-sm relative">
-              <button 
-                onClick={() => setShowEnhanceCard(false)}
-                className="absolute top-3 right-3 w-5 h-5 rounded-full border border-soft-border flex items-center justify-center text-muted hover:text-primary hover:bg-black/5 transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-              <h4 className="font-semibold text-primary mb-2 text-sm">Enhance your research</h4>
-              <p className="text-muted text-xs mb-4 leading-relaxed">
-                Create an account to save papers, organize projects, and get personalized recommendations.
-              </p>
-              <div className="flex flex-col gap-2">
-                <button className="w-full bg-accent text-white rounded-lg py-2.5 text-sm font-medium hover:bg-accent/90 transition-colors shadow-sm">
-                  Create free account
-                </button>
-                <button className="w-full text-accent rounded-lg py-2.5 text-sm font-medium hover:bg-accent/5 transition-colors">
-                  Sign in
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        <div className="mt-auto border-t border-soft-border p-4 space-y-1">
-          <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-            <HelpCircle className="w-4 h-4" />
-            Help Center
-          </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-            <Settings className="w-4 h-4" />
-            Settings
-          </a>
-        </div>
-      </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-[280px] min-w-0 flex flex-col relative z-10">
+      <main className="flex-1 ml-[280px] min-w-0 flex flex-col relative z-10 animate-page-in">
         {/* Topbar */}
         <header className="h-[72px] flex items-center justify-end px-10 shrink-0">
           <div className="flex items-center gap-8">
@@ -162,7 +49,7 @@ export default function AIAssistantPage() {
 
         {/* Center Content */}
         <div className="flex-1 flex flex-col items-center justify-center px-8 pb-12 pt-8">
-          <h1 className="font-serif text-[42px] font-semibold text-primary mb-3">
+          <h1 className="font-serif text-[42px] font-normal text-primary mb-3">
             Ask away, Ardava!
           </h1>
           <p className="text-muted text-[15px] mb-10">

@@ -11,94 +11,6 @@ export default function PaperDetailsPage() {
   return (
     <div className="flex min-h-screen bg-warm-white text-primary font-sans">
       
-      {/* Left Main Sidebar */}
-      <aside className="w-[280px] bg-light-surface border-r border-soft-border flex flex-col fixed inset-y-0 left-0 z-20">
-        <div className="flex items-center justify-between px-6 py-8">
-          <div className="flex flex-col">
-            <span className="font-serif text-3xl font-bold tracking-tight text-primary">KAIRO</span>
-            <span className="text-accent text-[11px] font-semibold tracking-[0.2em] mt-0.5">STUDIO</span>
-          </div>
-          <button className="text-muted hover:text-primary">
-            <Menu className="w-5 h-5" />
-          </button>
-        </div>
-
-        <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto no-scrollbar">
-          <ul className="space-y-1">
-            <li>
-              <Link href="/" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                <Home className="w-4 h-4" />
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link href="/search" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                <Search className="w-4 h-4" />
-                Search
-              </Link>
-            </li>
-            <li>
-              <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                <Book className="w-4 h-4" />
-                Journals & Books
-              </a>
-            </li>
-            <li>
-              <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                <User className="w-4 h-4" />
-                Authors
-              </a>
-            </li>
-            <li>
-              <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                <Building2 className="w-4 h-4" />
-                Institutions
-              </a>
-            </li>
-          </ul>
-
-          <div>
-            <h3 className="px-3 text-xs font-bold text-muted uppercase tracking-wider mb-3">Research Tools</h3>
-            <ul className="space-y-1">
-              <li>
-                <Link href="/literature-review" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                  <FileText className="w-4 h-4" />
-                  Literature Review
-                </Link>
-              </li>
-              <li>
-                <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                  <Sparkles className="w-4 h-4" />
-                  AI Research Assistant
-                </a>
-              </li>
-              <li>
-                <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                  <CheckSquare className="w-4 h-4" />
-                  Citation Manager
-                </a>
-              </li>
-              <li>
-                <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-                  <FolderOpen className="w-4 h-4" />
-                  Project Workspace
-                </a>
-              </li>
-            </ul>
-          </div>
-          
-          <div className="pt-4 border-t border-soft-border px-3 space-y-1">
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-              <HelpCircle className="w-4 h-4" />
-              Help Center
-            </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-              <Settings className="w-4 h-4" />
-              Settings
-            </a>
-          </div>
-        </nav>
-      </aside>
 
       {/* Inner Sidebar (TOC) */}
       <div className="w-[240px] ml-[280px] bg-warm-white border-r border-soft-border flex flex-col fixed inset-y-0 z-10 pt-8">
@@ -133,7 +45,7 @@ export default function PaperDetailsPage() {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-[520px] min-w-0 flex flex-col bg-warm-white">
+      <main className="flex-1 ml-[520px] min-w-0 flex flex-col bg-warm-white animate-page-in">
         
         {/* Topbar */}
         <header className="h-[72px] bg-warm-white/90 backdrop-blur flex items-center justify-end px-10 sticky top-0 z-30">

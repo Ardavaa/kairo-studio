@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   description: "Discover and analyze world-class research",
 };
 
+import Sidebar from "@/components/Sidebar";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -20,7 +22,10 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${sourceSerif.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Sidebar />
+        {children}
+      </body>
     </html>
   );
 }

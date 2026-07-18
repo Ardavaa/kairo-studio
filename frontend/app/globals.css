@@ -25,6 +25,19 @@
   }
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility animate-page-in {
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
 :root {
   --background: var(--color-warm-white);
   --foreground: var(--color-primary);
