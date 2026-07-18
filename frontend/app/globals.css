@@ -55,3 +55,7 @@ body {
 body.sidebar-collapsed .ml-\[280px\] {
   margin-left: 80px !important;
 }
+
+nextjs-portal {
+  display: none !important;
+}
