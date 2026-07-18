@@ -2,15 +2,23 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import {
   Menu, Home, Search, Book, User, Building2,
   FileText, Sparkles, CheckSquare, FolderOpen,
   HelpCircle, Settings, X
 } from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [showEnhanceCard, setShowEnhanceCard] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Load the dismissed state on mount
   useEffect(() => {
@@ -18,6 +26,11 @@ export default function Sidebar() {
       const isDismissed = localStorage.getItem("kairo_hide_enhance_card") === "true";
       if (isDismissed) {
         setShowEnhanceCard(false);
+      }
+      const savedCollapsed = localStorage.getItem("kairo_sidebar_collapsed") === "true";
+      if (savedCollapsed) {
+        setIsCollapsed(true);
+        document.body.classList.add("sidebar-collapsed");
       }
     }
   }, []);
@@ -29,89 +42,142 @@ export default function Sidebar() {
     }
   };
 
+  const toggleSidebar = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("kairo_sidebar_collapsed", String(newState));
+      if (newState) {
+        document.body.classList.add("sidebar-collapsed");
+      } else {
+        document.body.classList.remove("sidebar-collapsed");
+      }
+    }
+  };
+
   // Helper to determine if a link is active
   const isActive = (path: string) => pathname === path;
 
   const linkClass = (path: string) => {
-    const base = "flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-colors";
-    return isActive(path)
-      ? `${base} bg-accent/10 text-accent`
-      : `${base} text-muted hover:text-primary hover:bg-black/5`;
+    const base = cn(
+      "flex items-center rounded-lg font-medium text-sm transition-colors overflow-hidden whitespace-nowrap",
+      isCollapsed ? "justify-center p-3" : "gap-3 px-3 py-2.5"
+    );
+    return cn(
+      base,
+      isActive(path)
+        ? "bg-accent/10 text-accent"
+        : "text-muted hover:text-primary hover:bg-black/5"
+    );
   };
 
   return (
-    <aside className="w-[280px] bg-light-surface border-r border-soft-border flex flex-col fixed inset-y-0 left-0 z-20">
+    <aside 
+      className={cn(
+        "bg-light-surface border-r border-soft-border flex flex-col fixed inset-y-0 left-0 z-20 transition-all duration-300",
+        isCollapsed ? "w-[80px]" : "w-[280px]"
+      )}
+    >
       {/* Sidebar Header */}
-      <div className="flex items-center justify-between px-6 py-8">
-        <div className="flex flex-col">
-          <span className="font-serif text-3xl font-bold tracking-tight text-primary">KAIRO</span>
-          <span className="text-accent text-[11px] font-semibold tracking-[0.2em] mt-0.5">STUDIO</span>
-        </div>
-        <button className="text-muted hover:text-primary">
-          <Menu className="w-5 h-5" />
-        </button>
+      <div className={cn("flex py-8 items-center h-[96px]", isCollapsed ? "justify-center" : "px-6 justify-between")}>
+        {isCollapsed ? (
+          <button 
+            onClick={toggleSidebar} 
+            className="relative flex items-center justify-center group cursor-pointer w-12 h-12 rounded-lg hover:bg-black/5 transition-colors"
+          >
+            {/* Hamburger Icon */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+               <Menu className="w-5 h-5 text-primary" />
+            </div>
+            {/* Logo */}
+            <div className="flex items-center justify-center transition-opacity group-hover:opacity-0 w-full shrink-0">
+              <Image src="/kairo-logo-compact.svg" alt="Logo" width={32} height={32} className="w-8 h-8" />
+            </div>
+          </button>
+        ) : (
+          <>
+            <div className="flex items-center shrink-0">
+              <Image src="/kairo-logo.svg" alt="Logo" width={180} height={48} className="h-12 w-auto object-contain" />
+            </div>
+            <button 
+              onClick={toggleSidebar} 
+              className="text-muted hover:text-primary shrink-0 transition-colors p-1.5 rounded-lg hover:bg-black/5"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto no-scrollbar">
+      <nav className={cn("flex-1 py-4 space-y-8 overflow-y-auto no-scrollbar", isCollapsed ? "px-2" : "px-4")}>
         <ul className="space-y-1">
           <li>
             <Link href="/" className={linkClass("/")}>
-              <Home className="w-4 h-4" />
-              Home
+              <Home className="w-5 h-5 shrink-0" />
+              {!isCollapsed && <span>Home</span>}
             </Link>
           </li>
           <li>
             <Link href="/search" className={linkClass("/search")}>
-              <Search className="w-4 h-4" />
-              Search Papers
+              <Search className="w-5 h-5 shrink-0" />
+              {!isCollapsed && <span>Search Papers</span>}
             </Link>
           </li>
           <li>
-            <a href="#" onClick={(e) => e.preventDefault()} className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-              <Book className="w-4 h-4" />
-              Journals & Books
+            <a href="#" onClick={(e) => e.preventDefault()} className={linkClass("#")}>
+              <Book className="w-5 h-5 shrink-0" />
+              {!isCollapsed && <span>Journals & Books</span>}
             </a>
           </li>
           <li>
-            <a href="#" onClick={(e) => e.preventDefault()} className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-              <User className="w-4 h-4" />
-              Authors
+            <a href="#" onClick={(e) => e.preventDefault()} className={linkClass("#")}>
+              <User className="w-5 h-5 shrink-0" />
+              {!isCollapsed && <span>Authors</span>}
             </a>
           </li>
           <li>
-            <a href="#" onClick={(e) => e.preventDefault()} className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-              <Building2 className="w-4 h-4" />
-              Institutions
+            <a href="#" onClick={(e) => e.preventDefault()} className={linkClass("#")}>
+              <Building2 className="w-5 h-5 shrink-0" />
+              {!isCollapsed && <span>Institutions</span>}
             </a>
           </li>
         </ul>
 
         <div>
-          <h3 className="px-3 text-xs font-bold text-muted uppercase tracking-wider mb-3">Research Tools</h3>
+          {!isCollapsed && (
+            <h3 className="px-3 text-xs font-bold text-muted uppercase tracking-wider mb-3">
+              Research Tools
+            </h3>
+          )}
+          {isCollapsed && (
+            <div className="flex justify-center mb-3">
+              <div className="w-4 h-[1px] bg-soft-border"></div>
+            </div>
+          )}
           <ul className="space-y-1">
             <li>
               <Link href="/literature-review" className={linkClass("/literature-review")}>
-                <FileText className="w-4 h-4" />
-                Literature Review
+                <FileText className="w-5 h-5 shrink-0" />
+                {!isCollapsed && <span>Literature Review</span>}
               </Link>
             </li>
             <li>
               <Link href="/ai-assistant" className={linkClass("/ai-assistant")}>
-                <Sparkles className="w-4 h-4" />
-                AI Research Assistant
+                <Sparkles className="w-5 h-5 shrink-0" />
+                {!isCollapsed && <span>AI Research Assistant</span>}
               </Link>
             </li>
             <li>
               <Link href="/citation-manager" className={linkClass("/citation-manager")}>
-                <CheckSquare className="w-4 h-4" />
-                Citation Manager
+                <CheckSquare className="w-5 h-5 shrink-0" />
+                {!isCollapsed && <span>Citation Manager</span>}
               </Link>
             </li>
             <li>
               <Link href="/project-workspace" className={linkClass("/project-workspace")}>
-                <FolderOpen className="w-4 h-4" />
-                Project Workspace
+                <FolderOpen className="w-5 h-5 shrink-0" />
+                {!isCollapsed && <span>Project Workspace</span>}
               </Link>
             </li>
           </ul>
@@ -119,7 +185,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Enhance Your Research Card */}
-      {showEnhanceCard && (
+      {showEnhanceCard && !isCollapsed && (
         <div className="p-4">
           <div className="bg-paper-white rounded-xl p-5 border border-soft-border shadow-sm relative">
             <button 
@@ -145,14 +211,14 @@ export default function Sidebar() {
       )}
 
       {/* Footer System Actions */}
-      <div className="border-t border-soft-border p-4 space-y-1">
-        <a href="#" onClick={(e) => e.preventDefault()} className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-          <HelpCircle className="w-4 h-4" />
-          Help Center
+      <div className={cn("border-t border-soft-border p-4 space-y-1", isCollapsed && "px-2")}>
+        <a href="#" onClick={(e) => e.preventDefault()} className={linkClass("#")}>
+          <HelpCircle className="w-5 h-5 shrink-0" />
+          {!isCollapsed && <span>Help Center</span>}
         </a>
-        <a href="#" onClick={(e) => e.preventDefault()} className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
-          <Settings className="w-4 h-4" />
-          Settings
+        <a href="#" onClick={(e) => e.preventDefault()} className={linkClass("#")}>
+          <Settings className="w-5 h-5 shrink-0" />
+          {!isCollapsed && <span>Settings</span>}
         </a>
       </div>
     </aside>

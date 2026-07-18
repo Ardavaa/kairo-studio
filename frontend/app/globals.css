@@ -48,3 +48,10 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+.ml-\[280px\] {
+  transition: margin-left 0.3s ease-in-out;
+}
+body.sidebar-collapsed .ml-\[280px\] {
+  margin-left: 80px !important;
+}
