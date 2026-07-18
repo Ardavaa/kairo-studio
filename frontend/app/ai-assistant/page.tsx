@@ -7,24 +7,44 @@ import {
   FileText, Sparkles, CheckSquare, FolderOpen, 
   HelpCircle, Settings, X, Bookmark, ChevronDown,
   Plus, Send, Scale, Target, Lightbulb, BarChart2,
-  Shield, MessageSquare, RefreshCw
+  Shield, MessageSquare, RefreshCw, Network
 } from "lucide-react";
-import TextType from "@/components/TextType";
-
+import GradientChatInput from "@/components/ui/gradient-chat-input";
+import KnowledgeGraph from "@/components/KnowledgeGraph";
 
 export default function AIAssistantPage() {
-  const [query, setQuery] = useState("");
+  const [hasStartedChat, setHasStartedChat] = useState(false);
+  const [showGraph, setShowGraph] = useState(false);
+
+  const handleSend = async (message: string) => {
+    setHasStartedChat(true);
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/research/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: message }),
+      });
+      // the GradientChatInput will handle the auto-reply UI and showing the button.
+    } catch (e) {
+      console.error("Error connecting to backend.", e);
+    }
+  };
+
+  const handleViewGraph = () => {
+    setShowGraph(true);
+  };
 
   return (
-    <div className="flex min-h-screen bg-warm-white text-primary font-sans relative overflow-hidden">
+    <div className="flex min-h-screen bg-warm-white text-primary font-sans relative">
+      {/* Knowledge Graph Modal */}
+      {showGraph && <KnowledgeGraph onClose={() => setShowGraph(false)} />}
       {/* Background Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1400px] h-[900px] bg-[radial-gradient(ellipse_at_50%_40%,rgba(234,88,12,0.12)_0%,transparent_70%)] pointer-events-none" />
-
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[1400px] h-[900px] bg-[radial-gradient(ellipse_at_50%_40%,rgba(234,88,12,0.12)_0%,transparent_70%)] pointer-events-none z-0" />
 
       {/* Main Content */}
-      <main className="flex-1 ml-[280px] min-w-0 flex flex-col relative z-10 animate-page-in">
+      <main className="flex-1 ml-[280px] min-w-0 flex flex-col relative z-10 animate-page-in min-h-screen">
         {/* Topbar */}
-        <header className="h-[72px] flex items-center justify-end px-10 shrink-0">
+        <header className="h-[72px] flex items-center justify-end px-10 shrink-0 sticky top-0 bg-warm-white/80 backdrop-blur-md z-40 border-b border-transparent transition-all">
           <div className="flex items-center gap-8">
             <a href="#" className="text-sm font-semibold text-primary hover:text-accent transition-colors">
               Journals & Conferences
@@ -49,124 +69,103 @@ export default function AIAssistantPage() {
         </header>
 
         {/* Center Content */}
-        <div className="flex-1 flex flex-col items-center justify-center px-8 pb-12 pt-8">
-          <h1 className="font-serif text-[42px] font-normal text-primary mb-3">
-            Ask away, Ardava!
-          </h1>
-          <p className="text-muted text-[15px] mb-10">
-            Your AI partner for research. Ask anything or get help with your research tasks.
-          </p>
+        <div className={`flex-1 flex flex-col items-center px-8 pb-12 transition-all duration-700 ease-in-out ${hasStartedChat ? 'pt-8' : 'pt-24'}`}>
+          
+          {!hasStartedChat && (
+            <div className="flex flex-col items-center animate-fade-in text-center">
+              <h1 className="font-serif text-[42px] font-normal text-primary mb-3">
+                Ask away, Ardava!
+              </h1>
+              <p className="text-muted text-[15px] mb-10">
+                Your AI partner for research. Ask anything or get help with your research tasks.
+              </p>
+            </div>
+          )}
 
           {/* Search/Chat Input Box */}
-          <div className="w-full max-w-[800px] bg-paper-white rounded-[20px] shadow-sm border border-soft-border p-3 flex items-center gap-3 mb-10">
-            <button className="w-11 h-11 rounded-full border border-soft-border flex items-center justify-center text-muted hover:text-primary hover:bg-black/5 transition-colors shrink-0">
-              <Plus className="w-5 h-5" />
-            </button>
-            <div className="flex-1 relative flex items-center">
-              {!query && (
-                <div className="absolute inset-0 flex items-center pointer-events-none text-muted/70 text-[15px]">
-                  <TextType 
-                    text={[
-                      "Ask anything about your research...", 
-                      "Summarize a paper...", 
-                      "Find recent papers..."
-                    ]}
-                    typingSpeed={50}
-                    pauseDuration={2000}
-                    deletingSpeed={30}
-                  />
+          <div className="w-full max-w-[800px] relative z-30 flex-1 flex flex-col justify-end">
+            <GradientChatInput
+              placeholder="Ask anything about your research..."
+              onSend={handleSend}
+              onViewGraph={handleViewGraph}
+              className="w-full max-w-full"
+            />
+          </div>
+
+          {!hasStartedChat && (
+            <div className="animate-fade-in mt-10 w-full flex flex-col items-center">
+              <span className="text-[13px] text-muted mb-6">Try asking about</span>
+
+              {/* Grid 1: 3x2 Action Cards */}
+              <div className="grid grid-cols-3 gap-4 w-full max-w-[800px] mb-8">
+                <div className="bg-paper-white border border-soft-border rounded-xl p-5 hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h4 className="text-[14px] font-semibold text-primary mb-1">Summarize a paper</h4>
+                    <p className="text-[12px] text-muted leading-relaxed">Get a concise summary of key findings and insights.</p>
+                  </div>
                 </div>
-              )}
-              <input 
-                type="text" 
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="w-full bg-transparent border-none outline-none text-primary text-[15px] relative z-10"
-              />
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-black/5 transition-colors text-sm font-medium text-primary">
-                Pro
-                <ChevronDown className="w-4 h-4 text-muted" />
-              </button>
-              <button className="w-11 h-11 rounded-xl bg-accent text-white flex items-center justify-center hover:bg-accent/90 transition-colors shadow-sm">
-                <Send className="w-4 h-4 ml-[-2px]" />
-              </button>
-            </div>
-          </div>
 
-          <span className="text-[13px] text-muted mb-6">Try asking about</span>
+                <div className="bg-paper-white border border-soft-border rounded-xl p-5 hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                    <Scale className="w-5 h-5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h4 className="text-[14px] font-semibold text-primary mb-1">Compare methods</h4>
+                    <p className="text-[12px] text-muted leading-relaxed">Compare approaches, models, or techniques.</p>
+                  </div>
+                </div>
 
-          {/* Grid 1: 3x2 Action Cards */}
-          <div className="grid grid-cols-3 gap-4 w-full max-w-[800px] mb-8">
-            <div className="bg-paper-white border border-soft-border rounded-xl p-5 hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                <FileText className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col">
-                <h4 className="text-[14px] font-semibold text-primary mb-1">Summarize a paper</h4>
-                <p className="text-[12px] text-muted leading-relaxed">Get a concise summary of key findings and insights.</p>
-              </div>
-            </div>
+                <div className="bg-paper-white border border-soft-border rounded-xl p-5 hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                    <Search className="w-5 h-5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h4 className="text-[14px] font-semibold text-primary mb-1">Find recent papers</h4>
+                    <p className="text-[12px] text-muted leading-relaxed">Discover the latest and most relevant papers.</p>
+                  </div>
+                </div>
 
-            <div className="bg-paper-white border border-soft-border rounded-xl p-5 hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                <Scale className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col">
-                <h4 className="text-[14px] font-semibold text-primary mb-1">Compare methods</h4>
-                <p className="text-[12px] text-muted leading-relaxed">Compare approaches, models, or techniques.</p>
-              </div>
-            </div>
+                <div className="bg-paper-white border border-soft-border rounded-xl p-5 hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                    <Target className="w-5 h-5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h4 className="text-[14px] font-semibold text-primary mb-1">Identify research gaps</h4>
+                    <p className="text-[12px] text-muted leading-relaxed">Find open problems and future research directions.</p>
+                  </div>
+                </div>
 
-            <div className="bg-paper-white border border-soft-border rounded-xl p-5 hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                <Search className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col">
-                <h4 className="text-[14px] font-semibold text-primary mb-1">Find recent papers</h4>
-                <p className="text-[12px] text-muted leading-relaxed">Discover the latest and most relevant papers.</p>
-              </div>
-            </div>
+                <div className="bg-paper-white border border-soft-border rounded-xl p-5 hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                    <Lightbulb className="w-5 h-5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h4 className="text-[14px] font-semibold text-primary mb-1">Explain a concept</h4>
+                    <p className="text-[12px] text-muted leading-relaxed">Get clear explanations for complex concepts.</p>
+                  </div>
+                </div>
 
-            <div className="bg-paper-white border border-soft-border rounded-xl p-5 hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                <Target className="w-5 h-5" />
+                <div className="bg-paper-white border border-soft-border rounded-xl p-5 hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                    <BarChart2 className="w-5 h-5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h4 className="text-[14px] font-semibold text-primary mb-1">Analyze a dataset</h4>
+                    <p className="text-[12px] text-muted leading-relaxed">Understand and explore your research data.</p>
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <h4 className="text-[14px] font-semibold text-primary mb-1">Identify research gaps</h4>
-                <p className="text-[12px] text-muted leading-relaxed">Find open problems and future research directions.</p>
+
+              {/* Privacy Badge */}
+              <div className="bg-black/5 rounded-full py-2.5 px-5 flex items-center gap-2 text-[13px] text-primary/80 font-medium border border-black/5">
+                <Shield className="w-4 h-4" />
+                Your conversations are private and used only to help you with research.
               </div>
             </div>
-
-            <div className="bg-paper-white border border-soft-border rounded-xl p-5 hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                <Lightbulb className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col">
-                <h4 className="text-[14px] font-semibold text-primary mb-1">Explain a concept</h4>
-                <p className="text-[12px] text-muted leading-relaxed">Get clear explanations for complex concepts.</p>
-              </div>
-            </div>
-
-            <div className="bg-paper-white border border-soft-border rounded-xl p-5 hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                <BarChart2 className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col">
-                <h4 className="text-[14px] font-semibold text-primary mb-1">Analyze a dataset</h4>
-                <p className="text-[12px] text-muted leading-relaxed">Understand and explore your research data.</p>
-              </div>
-            </div>
-          </div>
-
-
-          {/* Privacy Badge */}
-          <div className="bg-black/5 rounded-full py-2.5 px-5 flex items-center gap-2 text-[13px] text-primary/80 font-medium border border-black/5">
-            <Shield className="w-4 h-4" />
-            Your conversations are private and used only to help you with research.
-          </div>
-
+          )}
         </div>
       </main>
     </div>

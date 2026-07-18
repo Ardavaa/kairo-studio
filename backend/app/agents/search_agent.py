@@ -14,8 +14,7 @@ class SearchAgent(BaseAgent):
     async def run(self, query: str, limit: int = 10, db_session: Optional[AsyncSession] = None) -> List[Dict[str, Any]]:
         params = {
             "search": query,
-            "per-page": limit,
-            "sort": "cited_by_count:desc"
+            "per-page": limit
         }
         
         async with httpx.AsyncClient() as client:
