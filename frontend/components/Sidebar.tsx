@@ -103,10 +103,10 @@ export default function Sidebar() {
               </Link>
             </li>
             <li>
-              <a href="#" onClick={(e) => e.preventDefault()} className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
+              <Link href="/citation-manager" className={linkClass("/citation-manager")}>
                 <CheckSquare className="w-4 h-4" />
                 Citation Manager
-              </a>
+              </Link>
             </li>
             <li>
               <a href="#" onClick={(e) => e.preventDefault()} className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
