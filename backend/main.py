@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.router import api_router
 
 app = FastAPI(
     title="Kairo Studio API",
@@ -23,3 +24,5 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+app.include_router(api_router, prefix="/api/v1")
