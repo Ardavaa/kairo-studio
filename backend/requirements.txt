@@ -1,8 +1,0 @@
-fastapi>=0.104.1
-uvicorn>=0.23.2
-pydantic>=2.4.2
-pydantic-settings>=2.0.3
-psycopg2-binary>=2.9.9
-SQLAlchemy>=2.0.23
-alembic>=1.12.1
-redis>=5.0.1
