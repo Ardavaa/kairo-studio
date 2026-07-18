@@ -9,6 +9,7 @@ import {
   Plus, Send, Scale, Target, Lightbulb, BarChart2,
   Shield, MessageSquare, RefreshCw
 } from "lucide-react";
+import TextType from "@/components/TextType";
 
 
 export default function AIAssistantPage() {
@@ -61,13 +62,28 @@ export default function AIAssistantPage() {
             <button className="w-11 h-11 rounded-full border border-soft-border flex items-center justify-center text-muted hover:text-primary hover:bg-black/5 transition-colors shrink-0">
               <Plus className="w-5 h-5" />
             </button>
-            <input 
-              type="text" 
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ask anything about your research..."
-              className="flex-1 bg-transparent border-none outline-none text-primary placeholder:text-muted/70 text-[15px]"
-            />
+            <div className="flex-1 relative flex items-center">
+              {!query && (
+                <div className="absolute inset-0 flex items-center pointer-events-none text-muted/70 text-[15px]">
+                  <TextType 
+                    text={[
+                      "Ask anything about your research...", 
+                      "Summarize a paper...", 
+                      "Find recent papers..."
+                    ]}
+                    typingSpeed={50}
+                    pauseDuration={2000}
+                    deletingSpeed={30}
+                  />
+                </div>
+              )}
+              <input 
+                type="text" 
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full bg-transparent border-none outline-none text-primary text-[15px] relative z-10"
+              />
+            </div>
             <div className="flex items-center gap-3 shrink-0">
               <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-black/5 transition-colors text-sm font-medium text-primary">
                 Pro
