@@ -9,12 +9,20 @@
   
   --color-accent: #E86A24;
   --color-success: #2E7D32;
-  --color-warning: #F5A623;
-  --color-danger: #C62828;
+  --color-warning: #ED6C02;
+  --color-danger: #D32F2F;
   --color-muted: #6B7280;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-source-serif), ui-serif, Georgia, serif;
+}
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 :root {

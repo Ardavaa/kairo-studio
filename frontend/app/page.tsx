@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import {
   Menu, Home, Search, Book, User, Building2,
   FileText, Sparkles, CheckSquare, FolderOpen,
@@ -7,16 +9,18 @@ import {
   BrainCircuit, Activity, Globe, Leaf, Lightbulb, Users,
   TrendingUp, Share2, HeartHandshake, Palette,
   Settings, Atom, FlaskConical, Hexagon,
-  LineChart, Network, Landmark
+  LineChart, Network, Landmark, X
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 export default function Page() {
+  const [showEnhanceCard, setShowEnhanceCard] = useState(true);
+
   return (
-    <div className="flex min-h-screen bg-warm-white">
+    <div className="flex min-h-screen bg-warm-white text-primary">
       {/* Sidebar */}
-      <aside className="w-[280px] bg-light-surface border-r border-soft-border flex flex-col fixed inset-y-0 left-0 z-10">
+      <aside className="w-[280px] bg-light-surface border-r border-soft-border flex flex-col fixed inset-y-0 left-0 z-20">
         <div className="flex items-center justify-between px-6 py-8">
           <div className="flex flex-col">
             <span className="font-serif text-3xl font-bold tracking-tight text-primary">KAIRO</span>
@@ -27,7 +31,7 @@ export default function Page() {
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto">
+        <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto no-scrollbar">
           <ul className="space-y-1">
             <li>
               <Link href="/" className="flex items-center gap-3 px-3 py-2.5 bg-accent/10 text-accent rounded-lg font-medium text-sm">
@@ -65,16 +69,16 @@ export default function Page() {
             <h3 className="px-3 text-xs font-bold text-muted uppercase tracking-wider mb-3">Research Tools</h3>
             <ul className="space-y-1">
               <li>
-                <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
+                <Link href="/literature-review" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
                   <FileText className="w-4 h-4" />
                   Literature Review
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
+                <Link href="/ai-assistant" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
                   <Sparkles className="w-4 h-4" />
                   AI Research Assistant
-                </a>
+                </Link>
               </li>
               <li>
                 <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
@@ -92,22 +96,30 @@ export default function Page() {
           </div>
         </nav>
 
-        <div className="p-4">
-          <div className="bg-paper-white rounded-xl p-5 border border-soft-border shadow-sm">
-            <h4 className="font-semibold text-primary mb-2 text-sm">Enhance your research</h4>
-            <p className="text-muted text-xs mb-4 leading-relaxed">
-              Create an account to save papers, organize projects, and get personalized recommendations.
-            </p>
-            <div className="flex flex-col gap-2">
-              <button className="w-full bg-accent text-white rounded-lg py-2.5 text-sm font-medium hover:bg-accent/90 transition-colors shadow-sm">
-                Create free account
+        {showEnhanceCard && (
+          <div className="p-4">
+            <div className="bg-paper-white rounded-xl p-5 border border-soft-border shadow-sm relative">
+              <button 
+                onClick={() => setShowEnhanceCard(false)}
+                className="absolute top-3 right-3 w-5 h-5 rounded-full border border-soft-border flex items-center justify-center text-muted hover:text-primary hover:bg-black/5 transition-colors"
+              >
+                <X className="w-3 h-3" />
               </button>
-              <button className="w-full text-accent rounded-lg py-2.5 text-sm font-medium hover:bg-accent/5 transition-colors">
-                Sign in
-              </button>
+              <h4 className="font-semibold text-primary mb-2 text-sm">Enhance your research</h4>
+              <p className="text-muted text-xs mb-4 leading-relaxed">
+                Create an account to save papers, organize projects, and get personalized recommendations.
+              </p>
+              <div className="flex flex-col gap-2">
+                <button className="w-full bg-accent text-white rounded-lg py-2.5 text-sm font-medium hover:bg-accent/90 transition-colors shadow-sm">
+                  Create free account
+                </button>
+                <button className="w-full text-accent rounded-lg py-2.5 text-sm font-medium hover:bg-accent/5 transition-colors">
+                  Sign in
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </aside>
 
       {/* Main Content */}

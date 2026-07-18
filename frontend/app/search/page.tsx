@@ -45,7 +45,7 @@ export default function SearchPage() {
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto">
+        <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto no-scrollbar">
           <ul className="space-y-1">
             <li>
               <Link href="/" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
@@ -83,10 +83,10 @@ export default function SearchPage() {
             <h3 className="px-3 text-xs font-bold text-muted uppercase tracking-wider mb-3">Research Tools</h3>
             <ul className="space-y-1">
               <li>
-                <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
+                <Link href="/literature-review" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
                   <FileText className="w-4 h-4" />
                   Literature Review
-                </a>
+                </Link>
               </li>
               <li>
                 <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">

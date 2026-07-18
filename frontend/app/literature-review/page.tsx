@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 import {
   Menu, Home, Search, Book, User, Building2,
@@ -5,10 +6,13 @@ import {
   ChevronDown, HelpCircle, Bookmark, PlayCircle,
   Folder, Info, SearchCode, ListFilter, Focus, Network,
   PenTool, Quote, GripVertical, Save, File, Plus,
-  CheckCircle2, Circle, Settings, Check
+  CheckCircle2, Circle, Settings, Check, X
 } from "lucide-react";
+import { useState } from "react";
 
 export default function LiteratureReviewPage() {
+  const [showEnhanceCard, setShowEnhanceCard] = useState(true);
+
   return (
     <div className="flex min-h-screen bg-warm-white text-primary font-sans">
       
@@ -24,7 +28,7 @@ export default function LiteratureReviewPage() {
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto">
+        <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto no-scrollbar">
           <ul className="space-y-1">
             <li>
               <Link href="/" className="flex items-center gap-3 px-3 py-2.5 text-muted hover:text-primary hover:bg-black/5 rounded-lg font-medium text-sm transition-colors">
@@ -88,22 +92,30 @@ export default function LiteratureReviewPage() {
             </ul>
           </div>
 
-          <div className="p-4">
-            <div className="bg-paper-white rounded-xl p-5 border border-soft-border shadow-sm">
-              <h4 className="font-semibold text-primary mb-2 text-sm">Enhance your research</h4>
-              <p className="text-muted text-xs mb-4 leading-relaxed">
-                Create an account to save papers, organize projects, and get personalized recommendations.
-              </p>
-              <div className="flex flex-col gap-2">
-                <button className="w-full bg-accent text-white rounded-lg py-2.5 text-sm font-medium hover:bg-accent/90 transition-colors shadow-sm">
-                  Create free account
+          {showEnhanceCard && (
+            <div className="p-4">
+              <div className="bg-paper-white rounded-xl p-5 border border-soft-border shadow-sm relative">
+                <button 
+                  onClick={() => setShowEnhanceCard(false)}
+                  className="absolute top-3 right-3 w-5 h-5 rounded-full border border-soft-border flex items-center justify-center text-muted hover:text-primary hover:bg-black/5 transition-colors"
+                >
+                  <X className="w-3 h-3" />
                 </button>
-                <button className="w-full text-accent rounded-lg py-2.5 text-sm font-medium hover:bg-accent/5 transition-colors">
-                  Sign in
-                </button>
+                <h4 className="font-semibold text-primary mb-2 text-sm">Enhance your research</h4>
+                <p className="text-muted text-xs mb-4 leading-relaxed">
+                  Create an account to save papers, organize projects, and get personalized recommendations.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button className="w-full bg-accent text-white rounded-lg py-2.5 text-sm font-medium hover:bg-accent/90 transition-colors shadow-sm">
+                    Create free account
+                  </button>
+                  <button className="w-full text-accent rounded-lg py-2.5 text-sm font-medium hover:bg-accent/5 transition-colors">
+                    Sign in
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </nav>
         
         <div className="py-4 border-t border-soft-border px-7 space-y-3 mt-auto mb-2">
