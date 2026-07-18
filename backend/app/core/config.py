@@ -6,6 +6,11 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"
     
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
+    # LLM Settings
+    DATABYTE_API_KEY: str
+    DATABYTE_BASE_URL: str = "https://ai.databyte.co.id/v1"
+    DATABYTE_MODEL: str = "databyte-m1"
+    
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
 settings = Settings()
