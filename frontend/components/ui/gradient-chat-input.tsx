@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Send, Network, FileText, Quote, ChevronDown, Mic, AudioLines } from "lucide-react";
+import { Plus, Send, Network, FileText, Quote, ChevronDown, Mic, AudioLines, RotateCw, Edit2, Copy, Volume2, ThumbsUp, ThumbsDown, Check, Info } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,14 @@ export default function GradientChatInput({
   const [selectedModel, setSelectedModel] = React.useState("Databyte m1");
   const [showModelDropdown, setShowModelDropdown] = React.useState(false);
   const [animatedPlaceholder, setAnimatedPlaceholder] = React.useState("");
+  
+  // Action bar states
+  const [copiedId, setCopiedId] = React.useState<number | null>(null);
+  const [speakingId, setSpeakingId] = React.useState<number | null>(null);
+  const [feedback, setFeedback] = React.useState<Record<number, "up" | "down">>({});
+  const [editingId, setEditingId] = React.useState<number | null>(null);
+  const [editValue, setEditValue] = React.useState("");
+  
   const idRef = React.useRef(0);
   const audioRef = React.useRef<AudioContext | null>(null);
 
@@ -165,15 +173,18 @@ export default function GradientChatInput({
     [playChime],
   );
 
-  const handleSend = async () => {
-    const text = value.trim();
+  const handleSend = async (overrideText?: string) => {
+    const text = overrideText || value.trim();
     if (!text) return;
 
-    onSend?.(text);
+    if (!overrideText) {
+      onSend?.(text);
+      setValue("");
+    }
+
     const userId = idRef.current++;
     setMessages((prev) => [...prev, { id: userId, text, sender: "user" }]);
     playSend();
-    setValue("");
 
     const botId = idRef.current++;
     setMessages((prev) => [...prev, { id: botId, text: "", sender: "bot", isLoading: true }]);
@@ -216,11 +227,58 @@ export default function GradientChatInput({
 
   const hasText = value.trim().length > 0;
 
+  // Handlers for action bar
+  const handleCopy = (id: number, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleSpeak = (id: number, text: string) => {
+    if (speakingId === id) {
+      window.speechSynthesis.cancel();
+      setSpeakingId(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onend = () => setSpeakingId(null);
+    setSpeakingId(id);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleFeedback = (id: number, type: "up" | "down") => {
+    setFeedback(prev => ({ ...prev, [id]: type }));
+  };
+
+  const handleRegenerateBot = (botIndex: number) => {
+    // Find the last user message before this bot message
+    let userText = "";
+    for (let i = botIndex - 1; i >= 0; i--) {
+      if (messages[i].sender === "user") {
+        userText = messages[i].text;
+        break;
+      }
+    }
+    if (userText) handleSend(userText);
+  };
+
+  const handleSaveEdit = (messageId: number) => {
+    const msgIndex = messages.findIndex(m => m.id === messageId);
+    if (msgIndex !== -1) {
+      setMessages(prev => prev.slice(0, msgIndex));
+      setEditingId(null);
+      handleSend(editValue);
+    }
+  };
+
   return (
     <div className={cn("relative mx-auto w-full max-w-4xl flex flex-col h-full", className)}>
       <div className="flex-1 flex flex-col gap-6 px-2 pb-8 pt-4">
         <AnimatePresence initial={false}>
-          {messages.map((m) => (
+          {messages.map((m, index) => {
+            const isLastMessage = index === messages.length - 1;
+            return (
             <motion.div
               key={m.id}
               layout
@@ -228,7 +286,7 @@ export default function GradientChatInput({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ type: "spring", stiffness: 420, damping: 32 }}
               className={cn(
-                "flex flex-col gap-3",
+                "flex flex-col gap-1 group",
                 m.sender === "user" ? "items-end" : "items-start"
               )}
             >
@@ -256,7 +314,33 @@ export default function GradientChatInput({
                         </ReactMarkdown>
                       </div>
                     ) : (
-                      <span>{m.text}</span>
+                      editingId === m.id ? (
+                        <div className="flex flex-col w-full min-w-[300px]">
+                          <textarea 
+                            className="w-full bg-paper-white resize-none outline-none border border-accent rounded-xl p-3 text-primary text-[15px] shadow-sm" 
+                            value={editValue}
+                            onChange={(e) => {
+                              setEditValue(e.target.value);
+                              e.target.style.height = 'auto';
+                              e.target.style.height = `${e.target.scrollHeight}px`;
+                            }}
+                            autoFocus
+                            rows={3}
+                          />
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between mt-4 gap-4">
+                            <div className="flex items-start gap-2 text-[12.5px] text-muted w-full sm:max-w-[320px]">
+                              <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                              <span className="leading-snug">Editing this message will create a new conversation branch. You can switch between branches using the arrow navigation buttons.</span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button onClick={() => setEditingId(null)} className="px-4 py-2 rounded-lg border border-soft-border text-sm font-medium hover:bg-black/5 bg-paper-white transition-colors shadow-sm">Cancel</button>
+                              <button onClick={() => handleSaveEdit(m.id)} className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm">Save</button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <span>{m.text}</span>
+                      )
                     )}
                     
                     {/* Render Papers if they exist */}
@@ -307,8 +391,52 @@ export default function GradientChatInput({
                   </>
                 )}
               </div>
+
+              {/* Action Bar */}
+              {!m.isLoading && (
+                <div className={cn(
+                  "flex items-center gap-1 text-muted mt-1 transition-opacity duration-200",
+                  m.sender === "user" 
+                    ? "flex-row-reverse opacity-0 group-hover:opacity-100 mr-2" 
+                    : cn("ml-0", isLastMessage ? "opacity-100" : "opacity-0 group-hover:opacity-100")
+                )}>
+                  {m.sender === "user" ? (
+                    <>
+                      <span className="text-[12px] font-medium ml-2">2:43 PM</span>
+                      <button onClick={() => handleSend(m.text)} className="p-1.5 hover:bg-black/5 rounded-md hover:text-primary transition-colors">
+                        <RotateCw className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => { setEditingId(m.id); setEditValue(m.text); }} className="p-1.5 hover:bg-black/5 rounded-md hover:text-primary transition-colors">
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => handleCopy(m.id, m.text)} className="p-1.5 hover:bg-black/5 rounded-md hover:text-primary transition-colors">
+                        {copiedId === m.id ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => handleCopy(m.id, m.text)} className="p-1.5 hover:bg-black/5 rounded-md hover:text-primary transition-colors">
+                        {copiedId === m.id ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                      <button onClick={() => handleSpeak(m.id, m.text)} className="p-1.5 hover:bg-black/5 rounded-md hover:text-primary transition-colors">
+                        <Volume2 className={cn("w-4 h-4", speakingId === m.id && "text-accent")} />
+                      </button>
+                      <button onClick={() => handleFeedback(m.id, "up")} className="p-1.5 hover:bg-black/5 rounded-md hover:text-primary transition-colors">
+                        <ThumbsUp className={cn("w-4 h-4", feedback[m.id] === "up" && "fill-current")} />
+                      </button>
+                      <button onClick={() => handleFeedback(m.id, "down")} className="p-1.5 hover:bg-black/5 rounded-md hover:text-primary transition-colors">
+                        <ThumbsDown className={cn("w-4 h-4", feedback[m.id] === "down" && "fill-current")} />
+                      </button>
+                      <button onClick={() => handleRegenerateBot(index)} className="p-1.5 hover:bg-black/5 rounded-md hover:text-primary transition-colors">
+                        <RotateCw className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </motion.div>
-          ))}
+            );
+          })}
         </AnimatePresence>
       </div>
 
