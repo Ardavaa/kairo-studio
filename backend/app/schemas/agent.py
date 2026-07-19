@@ -3,13 +3,16 @@ from typing import List
 
 class SearchQuery(BaseModel):
     query: str = Field(..., description="The search string to use for querying scholarly databases.")
+    limit: int | None = Field(5, description="The maximum number of papers to retrieve. Minimum 5, maximum 10.")
     year_from: int | None = Field(None, description="Start year for filtering papers.")
     year_to: int | None = Field(None, description="End year for filtering papers.")
 
 class PlannerOutput(BaseModel):
-    intent: str = Field(..., description="The main intent of the user, e.g., 'Literature Review', 'Find Dataset'.")
-    search_queries: List[SearchQuery] = Field(..., description="A list of structured search queries to execute.")
-    explanation: str = Field(..., description="Brief explanation of the research strategy.")
+    intent: str = Field(..., description="The main intent of the user, e.g., 'Literature Review', 'General Chat'.")
+    needs_search: bool = Field(True, description="Whether this query actually requires searching scholarly papers.")
+    direct_answer: str | None = Field(None, description="If needs_search is false, provide the direct answer here.")
+    search_queries: List[SearchQuery] = Field(default_factory=list, description="A list of structured search queries to execute. Empty if needs_search is false.")
+    explanation: str = Field(..., description="Brief explanation of the research strategy, or the reason why search is skipped.")
 
 class ExtractedNode(BaseModel):
     name: str = Field(..., description="The name of the entity, e.g., 'Vision Transformer', 'ImageNet'")

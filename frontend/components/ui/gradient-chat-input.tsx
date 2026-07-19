@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Send, Network, FileText, Quote } from "lucide-react";
+import { Plus, Send, Network, FileText, Quote, ChevronDown, Mic, AudioLines } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -42,8 +42,82 @@ export default function GradientChatInput({
 }: GradientChatInputProps) {
   const [value, setValue] = React.useState("");
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+  const [selectedModel, setSelectedModel] = React.useState("Databyte m1");
+  const [showModelDropdown, setShowModelDropdown] = React.useState(false);
+  const [animatedPlaceholder, setAnimatedPlaceholder] = React.useState("");
   const idRef = React.useRef(0);
   const audioRef = React.useRef<AudioContext | null>(null);
+
+  React.useEffect(() => {
+    if (messages.length > 0) {
+      setAnimatedPlaceholder("Ask anything about your research...");
+      return;
+    }
+
+    const phrases = [
+      "Ask anything about your research...",
+      "Search millions of scholarly papers...",
+      "Generate insights from knowledge graphs..."
+    ];
+    let timeout: ReturnType<typeof setTimeout>;
+    let currentIndex = 0;
+    let phraseIndex = 0;
+    let isDeleting = false;
+    let isPaused = false;
+    let pauseTicks = 0;
+    let showCursor = true;
+
+    const tick = () => {
+      const currentPhrase = phrases[phraseIndex];
+
+      if (isPaused) {
+        pauseTicks++;
+        showCursor = !showCursor;
+        setAnimatedPlaceholder(currentPhrase.substring(0, currentIndex) + (showCursor ? "|" : ""));
+        
+        if (currentIndex === 0 && pauseTicks > 2) {
+          isPaused = false;
+          pauseTicks = 0;
+          showCursor = true;
+          timeout = setTimeout(tick, 50);
+        } else if (currentIndex === currentPhrase.length && pauseTicks > 6) {
+          isPaused = false;
+          isDeleting = true;
+          pauseTicks = 0;
+          showCursor = true;
+          timeout = setTimeout(tick, 30);
+        } else {
+          timeout = setTimeout(tick, 400); // cursor blink speed
+        }
+        return;
+      }
+
+      if (!isDeleting) {
+        setAnimatedPlaceholder(currentPhrase.substring(0, currentIndex + 1) + "|");
+        currentIndex++;
+        if (currentIndex === currentPhrase.length) {
+          isPaused = true;
+          timeout = setTimeout(tick, 400); 
+        } else {
+          timeout = setTimeout(tick, 50); 
+        }
+      } else {
+        setAnimatedPlaceholder(currentPhrase.substring(0, currentIndex - 1) + "|");
+        currentIndex--;
+        if (currentIndex === 0) {
+          isDeleting = false;
+          phraseIndex = (phraseIndex + 1) % phrases.length;
+          isPaused = true;
+          timeout = setTimeout(tick, 400); 
+        } else {
+          timeout = setTimeout(tick, 30); 
+        }
+      }
+    };
+    
+    timeout = setTimeout(tick, 500);
+    return () => clearTimeout(timeout);
+  }, [messages.length]);
 
   const getAudioContext = React.useCallback(() => {
     if (typeof window === "undefined") return null;
@@ -108,7 +182,7 @@ export default function GradientChatInput({
       const res = await fetch("http://localhost:8000/api/v1/research/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: text }),
+        body: JSON.stringify({ query: text, model: selectedModel }),
       });
       
       const data = await res.json();
@@ -120,9 +194,9 @@ export default function GradientChatInput({
             ? { 
                 ...m, 
                 isLoading: false, 
-                text: data.explanation || "Pencarian selesai.", 
+                text: data.explanation || "Pencarian selesai, namun AI gagal memuat ringkasan.", 
                 papers: data.papers || [],
-                showGraphButton: true
+                showGraphButton: data.papers && data.papers.length > 0
               } 
             : m
         )
@@ -159,17 +233,17 @@ export default function GradientChatInput({
               )}
             >
               <div className={cn(
-                "max-w-[85%] break-words px-5 py-4 text-[15px] shadow-sm flex flex-col gap-4",
+                "break-words text-[15px] flex flex-col gap-4",
                 m.sender === "user"
-                  ? "rounded-[24px_24px_6px_24px] bg-paper-white border border-soft-border text-primary"
-                  : "rounded-[24px_24px_24px_6px] bg-[#E85D04]/5 text-primary border border-[#E85D04]/20"
+                  ? "rounded-2xl bg-black/5 px-5 py-4 text-primary max-w-[70%]"
+                  : "bg-transparent text-primary w-full max-w-full"
               )}>
                 {m.isLoading ? (
                   <ToolCallingLoader />
                 ) : (
                   <>
                     {m.sender === "bot" ? (
-                      <div className="prose prose-sm max-w-none text-primary prose-p:leading-relaxed prose-headings:text-primary prose-a:text-accent prose-table:my-4">
+                      <div className="prose prose-sm max-w-none text-primary font-serif prose-p:leading-relaxed prose-headings:text-primary prose-a:text-accent prose-table:my-4">
                         <ReactMarkdown 
                           remarkPlugins={[remarkGfm]}
                           components={{
@@ -240,47 +314,113 @@ export default function GradientChatInput({
 
       {/* the input card */}
       <div className="sticky bottom-8 z-10 w-full mt-auto">
-        <div className="relative rounded-[24px] border border-soft-border bg-paper-white p-1.5 shadow-md">
-          <div className="relative z-[2] flex items-center justify-between gap-3 rounded-[20px] bg-paper-white p-1.5">
-          <div className="flex flex-1 items-center gap-3 pr-1">
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon"
-              aria-label="Add attachment"
-              className="size-11 shrink-0 rounded-xl bg-black/5 text-muted hover:bg-black/10 hover:text-primary transition-colors border-none"
-            >
-              <Plus className="size-5" />
-            </Button>
-            <Input
+        <div className="relative rounded-[24px] border border-soft-border bg-paper-white shadow-md">
+          <div className="relative z-[2] flex flex-col gap-2 rounded-[20px] bg-paper-white p-3">
+            <textarea
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={(e) => {
+                setValue(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleSend();
+                  e.currentTarget.style.height = 'auto';
                 }
               }}
-              placeholder={placeholder}
+              placeholder={animatedPlaceholder}
               aria-label="Message"
-              className="h-auto flex-1 border-none outline-none focus:outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent px-2 py-0 text-[15px] text-primary shadow-none placeholder:text-muted/70"
+              rows={1}
+              className="h-auto w-full resize-none border-none outline-none focus:outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent px-2 py-2 text-[15px] text-primary shadow-none placeholder:text-muted/70 no-scrollbar"
+              style={{ minHeight: "40px", maxHeight: "200px" }}
             />
+            
+            <div className="flex items-center justify-between w-full mt-1">
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                aria-label="Add attachment"
+                className="size-10 shrink-0 rounded-full bg-transparent text-muted hover:bg-black/5 hover:text-primary transition-colors border-none"
+              >
+                <Plus className="size-5" />
+              </Button>
+
+              <div className="flex items-center gap-2 pr-1 relative">
+                <div 
+                  className="flex items-center gap-1.5 text-[14px] text-primary cursor-pointer hover:bg-black/5 px-3 py-1.5 rounded-lg transition-colors relative"
+                  onClick={() => setShowModelDropdown(!showModelDropdown)}
+                >
+                  <span className="font-medium">{selectedModel.split(' ')[0]}</span>
+                  <span className="text-muted">{selectedModel.split(' ').slice(1).join(' ')}</span>
+                  <ChevronDown className="w-4 h-4 text-muted ml-0.5" />
+                  
+                  {/* Dropdown Menu */}
+                  <AnimatePresence>
+                    {showModelDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute bottom-full left-0 mb-2 w-48 bg-paper-white border border-soft-border rounded-xl shadow-lg overflow-hidden z-50 flex flex-col p-1"
+                      >
+                        <div 
+                          className="px-3 py-2 text-sm hover:bg-black/5 rounded-lg cursor-pointer transition-colors"
+                          onClick={() => { setSelectedModel("Databyte m1"); setShowModelDropdown(false); }}
+                        >
+                          <span className="font-medium">Databyte</span> <span className="text-muted">m1</span>
+                        </div>
+                        <div 
+                          className="px-3 py-2 text-sm hover:bg-black/5 rounded-lg cursor-pointer transition-colors"
+                          onClick={() => { setSelectedModel("Deepseek v4-flash"); setShowModelDropdown(false); }}
+                        >
+                          <span className="font-medium">Deepseek</span> <span className="text-muted">v4-flash</span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+                
+                {hasText ? (
+                  <Button
+                    type="button"
+                    onClick={handleSend}
+                    onMouseDown={(e) => e.preventDefault()}
+                    size="icon"
+                    aria-label="Send message"
+                    className="size-10 shrink-0 rounded-full bg-accent hover:bg-accent/90 text-white shadow-sm transition-all active:scale-95"
+                  >
+                    <Send className="size-4" strokeWidth={2} />
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Voice input"
+                      className="size-10 shrink-0 rounded-full text-primary hover:bg-black/5 transition-colors"
+                    >
+                      <Mic className="size-5" strokeWidth={1.5} />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Voice input alternative"
+                      className="size-10 shrink-0 rounded-full text-primary hover:bg-black/5 transition-colors"
+                    >
+                      <AudioLines className="size-5" strokeWidth={1.5} />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-          <Button
-            type="button"
-            onClick={handleSend}
-            onMouseDown={(e) => e.preventDefault()}
-            size="icon"
-            aria-label="Send message"
-            className={cn(
-              "size-11 shrink-0 rounded-xl transition-all active:scale-95",
-              hasText ? "bg-accent hover:bg-accent/90 text-white shadow-sm" : "bg-black/5 text-muted/50 hover:bg-black/5"
-            )}
-          >
-            <Send className="size-5" strokeWidth={2} />
-          </Button>
         </div>
-      </div>
       </div>
     </div>
   );

@@ -39,34 +39,38 @@ export default function AIAssistantPage() {
       {/* Knowledge Graph Modal */}
       {showGraph && <KnowledgeGraph onClose={() => setShowGraph(false)} />}
       {/* Background Glow */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[1400px] h-[900px] bg-[radial-gradient(ellipse_at_50%_40%,rgba(234,88,12,0.12)_0%,transparent_70%)] pointer-events-none z-0" />
+      {!hasStartedChat && (
+        <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[1400px] h-[900px] bg-[radial-gradient(ellipse_at_50%_40%,rgba(234,88,12,0.12)_0%,transparent_70%)] pointer-events-none z-0" />
+      )}
 
       {/* Main Content */}
       <main className="flex-1 ml-[280px] min-w-0 flex flex-col relative z-10 animate-page-in min-h-screen">
         {/* Topbar */}
-        <header className="h-[72px] flex items-center justify-end px-10 shrink-0 sticky top-0 bg-warm-white/80 backdrop-blur-md z-40 border-b border-transparent transition-all">
-          <div className="flex items-center gap-8">
-            <a href="#" className="text-sm font-semibold text-primary hover:text-accent transition-colors">
-              Journals & Conferences
-            </a>
-            <button className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-accent transition-colors">
-              Research Tools
-              <ChevronDown className="w-4 h-4 text-muted" />
-            </button>
-            <a href="#" className="flex items-center gap-2 text-sm font-semibold text-primary hover:text-accent transition-colors">
-              <HelpCircle className="w-4 h-4 text-muted" />
-              Help
-            </a>
-            <div className="w-px h-5 bg-soft-border mx-2" />
-            <a href="#" className="flex items-center gap-2 text-sm font-semibold text-primary hover:text-accent transition-colors">
-              <Bookmark className="w-4 h-4 text-muted" />
-              My Library
-            </a>
-            <button className="w-9 h-9 rounded-full bg-[#f4ece1] flex items-center justify-center text-sm font-bold text-primary ml-2 border border-soft-border hover:border-muted transition-colors">
-              D
-            </button>
-          </div>
-        </header>
+        {hasStartedChat && (
+          <header className="h-[72px] flex items-center justify-end px-10 shrink-0 sticky top-0 bg-warm-white/80 backdrop-blur-md z-40 border-b border-transparent transition-all">
+            <div className="flex items-center gap-8">
+              <a href="#" className="text-sm font-semibold text-primary hover:text-accent transition-colors">
+                Journals & Conferences
+              </a>
+              <button className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-accent transition-colors">
+                Research Tools
+                <ChevronDown className="w-4 h-4 text-muted" />
+              </button>
+              <a href="#" className="flex items-center gap-2 text-sm font-semibold text-primary hover:text-accent transition-colors">
+                <HelpCircle className="w-4 h-4 text-muted" />
+                Help
+              </a>
+              <div className="w-px h-5 bg-soft-border mx-2" />
+              <a href="#" className="flex items-center gap-2 text-sm font-semibold text-primary hover:text-accent transition-colors">
+                <Bookmark className="w-4 h-4 text-muted" />
+                My Library
+              </a>
+              <button className="w-9 h-9 rounded-full bg-[#f4ece1] flex items-center justify-center text-sm font-bold text-primary ml-2 border border-soft-border hover:border-muted transition-colors">
+                D
+              </button>
+            </div>
+          </header>
+        )}
 
         {/* Center Content */}
         <div className={`flex-1 flex flex-col items-center px-8 pb-12 transition-all duration-700 ease-in-out ${hasStartedChat ? 'pt-8' : 'pt-24'}`}>

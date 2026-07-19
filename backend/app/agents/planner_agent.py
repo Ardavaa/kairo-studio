@@ -13,17 +13,24 @@ class PlannerAgent(BaseAgent):
         Your job is to take a user's research goal and decompose it into an actionable search strategy.
         Extract the intent and formulate specific keyword combinations suitable for scholarly search engines.
         
+        CRITICAL: For your first search_query, use the EXACT key phrase the user provided without appending generic terms like "deep learning" or "AI" or "machine learning". Scholarly search engines like OpenAlex perform poorly when specific concepts are diluted with generic keywords.
+        
+        If the user asks a general question, greetings, or something that does not require searching scholarly papers, set "needs_search" to false, leave "search_queries" empty, and provide your response in "direct_answer".
+
         You MUST return ONLY a valid JSON object matching this exact format, with no markdown formatting or extra text:
         {{
-            "intent": "Brief description of the research goal",
+            "intent": "Brief description of the research goal or chat intent",
+            "needs_search": true,
+            "direct_answer": null,
             "search_queries": [
                 {{
                     "query": "exact search keywords",
+                    "limit": 5,
                     "year_from": 2023,
                     "year_to": 2024
                 }}
             ],
-            "explanation": "Why you chose these queries"
+            "explanation": "Why you chose these queries or your reasoning"
         }}
         """
 
@@ -33,7 +40,8 @@ class PlannerAgent(BaseAgent):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            temperature=0.2
+            temperature=0.2,
+            max_tokens=1024
         )
         
         raw_content = response.choices[0].message.content

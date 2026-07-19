@@ -36,7 +36,8 @@ class ReaderAgent(BaseAgent):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Extract knowledge from the following text:\\n\\n{text}"}
             ],
-            temperature=0.1
+            temperature=0.1,
+            max_tokens=2048
         )
         
         raw_content = response.choices[0].message.content

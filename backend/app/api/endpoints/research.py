@@ -32,6 +32,12 @@ async def start_research(request: ResearchQuery, db_session: AsyncSession = Depe
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Planner Error: {str(e)}")
         
+    if not plan.needs_search:
+        return ResearchResponse(
+            explanation=plan.direct_answer or plan.explanation or "Hello! How can I help you?",
+            papers=[]
+        )
+        
     if not plan.search_queries:
         raise HTTPException(status_code=400, detail="Could not generate a valid search query.")
         
@@ -40,10 +46,13 @@ async def start_research(request: ResearchQuery, db_session: AsyncSession = Depe
     
     # We will pass the year_from to the search agent if we modify it, but for now just use the query string.
     # OpenAlex relevance is better without appending random years to the search string.
+    # The user wants a default of 5 papers, and a max cap of 10 papers.
+    # Enforce min 5 and max 10.
+    requested_limit = max(5, min(first_query.limit or 5, 10))
         
     searcher = SearchAgent()
     try:
-        results = await searcher.run(search_string, limit=3, db_session=db_session)
+        results = await searcher.run(search_string, limit=requested_limit, db_session=db_session)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Searcher Error: {str(e)}")
     
@@ -80,9 +89,12 @@ Write a comprehensive, highly structured response answering the user's query bas
             model=settings.DATABYTE_MODEL,
             messages=[{"role": "system", "content": "You are a helpful AI Research Assistant."},
                       {"role": "user", "content": synthesis_prompt}],
-            temperature=0.7
+            temperature=0.7,
+            max_tokens=2048
         )
         synthesis_response = completion.choices[0].message.content
+        if not synthesis_response:
+            synthesis_response = "I found some relevant papers, but the AI returned an empty response."
     except Exception as e:
         print(f"Synthesis failed: {e}")
         synthesis_response = "I found some relevant papers, but I was unable to synthesize a summary at this time."
