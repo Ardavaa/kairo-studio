@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
+  <img src="./docs/github-banner.png" alt="Kairo Studio" width="100%">
+</div>
 
-## Getting Started
+# Kairo Studio
 
-First, run the development server:
+**AI-native Research Workspace**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Go from research idea to literature review to publication in one intelligent workspace.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Vision
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Kairo Studio is an AI-native research environment that helps researchers, students, engineers, and scientists perform the entire research workflow without switching between multiple tools. Instead of using separate platforms for searching papers, reading PDFs, writing literature reviews, managing citations, and drafting manuscripts, Kairo Studio combines everything into one collaborative AI workspace.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The long-term vision is to become the ultimate workspace for research, enabling humans and AI agents to collaborate throughout the entire research lifecycle.
 
-## Learn More
+## Problem & Solution
 
-To learn more about Next.js, take a look at the following resources:
+Today's research workflow is highly fragmented across tools like Google Scholar, Zotero, Overleaf, Obsidian, and AI chatbots. Information becomes scattered, and context is lost.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Kairo Studio centralizes the research workflow. Users can discover papers, organize projects, understand complex literature, generate reviews, identify gaps, and draft manuscripts. Rather than replacing researchers, Kairo Studio acts as an intelligent collaborator. The human remains the author, while the AI acts as the accelerator.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Core Features
 
-## Deploy on Vercel
+- **Research Workspace:** Manage multiple research projects, storing papers, notes, citations, conversations, and drafts.
+- **AI Paper Search:** Search academic databases (arXiv, Semantic Scholar, OpenAlex) using natural language.
+- **Paper Library:** Organize papers into collections, complete with metadata, extracted text, embeddings, and notes.
+- **AI Reading & Chat:** Interact with single or multiple papers to summarize sections, explain equations, and answer specific questions with cited evidence.
+- **Literature Review Generator:** Automatically generate comprehensive literature reviews from selected papers, complete with supporting citations.
+- **Research Gap Finder:** Analyze literature to find unexplored problems, inconsistent findings, and evaluation weaknesses.
+- **AI Paper Writer & Citation Manager:** Draft academic writing with cited evidence and automatically generate citations in various formats (APA, IEEE, ACM, BibTeX, RIS).
+- **Research Notes & Export:** Markdown-based note-taking with equations and Mermaid support, exportable to PDF, DOCX, Markdown, and LaTeX.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Multi-Agent Architecture
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Kairo Studio is built on a specialized multi-agent architecture rather than a single monolithic AI. Specialized agents handle specific tasks:
+- **Planner Agent:** Understands user goals, plans workflows, and decides which agents to invoke.
+- **Search & Retrieval Agents:** Fetches relevant papers, retrieves PDFs, and extracts metadata.
+- **Reading & Evidence Agents:** Summarizes content, performs Q&A, and verifies supporting passages.
+- **Literature Review & Gap Analysis Agents:** Synthesizes findings and identifies research opportunities.
+- **Writing & Reviewer Agents:** Drafts sections, improves writing, and provides critical feedback simulating conference reviewers.
+- **Citation Agent:** Manages bibliography and formatting.
+
+## Technology Stack
+
+- **Frontend:** Next.js, React, Tailwind CSS, shadcn/ui, Framer Motion
+- **Backend:** FastAPI, Python, PostgreSQL, Redis
+- **AI Models:** OpenAI, Anthropic Claude, Gemini, LiteLLM
+- **Retrieval & Search:** Qdrant, pgvector, Voyage AI embeddings, OpenAlex/Semantic Scholar APIs
+- **Document Processing:** PyMuPDF, GROBID, Unstructured, Docling
+
+## Design Principles
+
+- **Evidence First:** Every generated statement is traceable and backed by citations. No hallucinated citations.
+- **Human in Control:** Users approve every major generation. Nothing is hidden.
+- **Project-Based:** Everything belongs inside projects. Context persists across sessions.
+- **AI-Native:** The interface is designed around AI collaboration, not traditional document editing.
+- **Research-Centric:** Every feature exists because it improves research quality.
