@@ -4,6 +4,7 @@ from typing import List
 class SearchQuery(BaseModel):
     query: str = Field(..., description="The search string to use for querying scholarly databases.")
     limit: int | None = Field(5, description="The maximum number of papers to retrieve. Minimum 5, maximum 10.")
+    source: str = Field("openalex", description="The academic search database to use. Options: 'openalex', 'semanticscholar', 'arxiv', 'core', 'elsevier'")
     year_from: int | None = Field(None, description="Start year for filtering papers.")
     year_to: int | None = Field(None, description="End year for filtering papers.")
 

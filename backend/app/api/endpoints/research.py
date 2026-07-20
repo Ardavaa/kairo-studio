@@ -49,12 +49,15 @@ async def start_research(request: ResearchQuery, db_session: AsyncSession = Depe
     # The user wants a default of 5 papers, and a max cap of 10 papers.
     # Enforce min 5 and max 10.
     requested_limit = max(5, min(first_query.limit or 5, 10))
+    requested_source = first_query.source or "semanticscholar"
         
     searcher = SearchAgent()
     try:
-        results = await searcher.run(search_string, limit=requested_limit, db_session=db_session)
+        results = await searcher.run(search_string, limit=requested_limit, source=requested_source, db_session=db_session)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Searcher Error: {str(e)}")
+        import traceback
+        err_msg = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=f"Searcher Error: {err_msg}")
     
     reader = ReaderAgent()
     for res in results:
@@ -68,38 +71,71 @@ async def start_research(request: ResearchQuery, db_session: AsyncSession = Depe
             except Exception as e:
                 print(f"Reader failed silently for {paper.id}: {e}")
                 
-    # NEW: Synthesis Step
+    # NEW: Synthesis Step with Relevance Filtering
     synthesis_prompt = f"""
 You are an expert AI Research Assistant. The user asked: "{request.query}"
 
 Here are the top papers found:
 """
     for idx, p in enumerate(results):
-        synthesis_prompt += f"\n[{idx+1}] Title: {p['title']}\nAbstract: {p.get('abstract', 'No abstract')}\n"
+        abstract = p.get('abstract', 'No abstract')
+        if abstract and len(abstract) > 500:
+            abstract = abstract[:500] + "..."
+        synthesis_prompt += f"\n[{idx}] Title: {p['title']}\nAbstract: {abstract}\n"
         
     synthesis_prompt += """
-Write a comprehensive, highly structured response answering the user's query based on these papers.
-- Use Markdown formatting (bolding, lists, and tables if comparing multiple methods).
-- You MUST cite the papers inline using their index, like [1] or [2].
-- Structure it beautifully with sections.
+You must synthesize the answer based ONLY on the provided papers above.
+DO NOT invent, hallucinate, or cite any papers that are not in the list above.
+DO NOT include a "References" or "Daftar Pustaka" section at the end of your response! The UI will automatically display the sources.
+
+You MUST respond in strict JSON format with exactly two keys:
+1. "explanation": A comprehensive, highly structured markdown string answering the user's query. Use formatting (bolding, lists, tables). Cite relevant papers inline using ONLY their exact index, like [0] or [1].
+2. "relevant_indices": A JSON array of integers containing ONLY the indices of the papers from the list above that are actually relevant.
+
+Respond with nothing but the JSON object.
 """
     
     try:
         completion = await llm_client.chat.completions.create(
             model=settings.DATABYTE_MODEL,
-            messages=[{"role": "system", "content": "You are a helpful AI Research Assistant."},
+            messages=[{"role": "system", "content": "You are a helpful AI Research Assistant that outputs JSON."},
                       {"role": "user", "content": synthesis_prompt}],
-            temperature=0.7,
+            temperature=0.3,
             max_tokens=2048
         )
-        synthesis_response = completion.choices[0].message.content
-        if not synthesis_response:
-            synthesis_response = "I found some relevant papers, but the AI returned an empty response."
+        synthesis_json = completion.choices[0].message.content
+        
+        # Extract JSON if wrapped in markdown
+        import re
+        import json
+        json_match = re.search(r"```(?:json)?(.*?)```", synthesis_json, re.DOTALL)
+        if json_match:
+            synthesis_json = json_match.group(1).strip()
+            
+        parsed = json.loads(synthesis_json)
+        synthesis_response = parsed.get("explanation", "I found some relevant papers.")
+        relevant_indices = parsed.get("relevant_indices", list(range(len(results))))
+        
+        # Ensure it's a list of integers
+        if not isinstance(relevant_indices, list):
+            relevant_indices = list(range(len(results)))
+        else:
+            try:
+                relevant_indices = [int(i) for i in relevant_indices]
+            except (ValueError, TypeError):
+                relevant_indices = list(range(len(results)))
+        
+        # Filter results
+        filtered_results = [results[i] for i in relevant_indices if i < len(results)]
+        if not filtered_results:
+            filtered_results = results # fallback if AI rejected everything
+            
     except Exception as e:
         print(f"Synthesis failed: {e}")
         synthesis_response = "I found some relevant papers, but I was unable to synthesize a summary at this time."
+        filtered_results = results
                 
     return ResearchResponse(
         explanation=synthesis_response,
-        papers=results
+        papers=filtered_results
     )

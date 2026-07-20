@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     DATABYTE_BASE_URL: str = "https://ai.databyte.co.id/v1"
     DATABYTE_MODEL: str = "databyte-m1"
     
+    # Optional Third-Party Search API Keys
+    CORE_API_KEY: str | None = None
+    ELSEVIER_API_KEY: str | None = None
+    S2_API_KEY: str | None = None
+    
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
 settings = Settings()

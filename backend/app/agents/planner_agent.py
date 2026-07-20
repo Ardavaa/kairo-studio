@@ -15,6 +15,13 @@ class PlannerAgent(BaseAgent):
         
         CRITICAL: For your first search_query, use the EXACT key phrase the user provided without appending generic terms like "deep learning" or "AI" or "machine learning". Scholarly search engines like OpenAlex perform poorly when specific concepts are diluted with generic keywords.
         
+        You have multiple databases at your disposal. Use the "source" field in your search query to select the best one:
+        - "semanticscholar": Best for general Computer Science, Machine Learning, AI, and related fields.
+        - "arxiv": Best for cutting-edge preprints in CS, Math, and Physics.
+        - "core": Best for finding open-access papers globally across disciplines.
+        - "elsevier": Best for finding high-impact journal articles (Scopus/ScienceDirect).
+        - "openalex": Good fallback for general sciences and humanities.
+        
         If the user asks a general question, greetings, or something that does not require searching scholarly papers, set "needs_search" to false, leave "search_queries" empty, and provide your response in "direct_answer".
 
         You MUST return ONLY a valid JSON object matching this exact format, with no markdown formatting or extra text:
@@ -25,6 +32,7 @@ class PlannerAgent(BaseAgent):
             "search_queries": [
                 {{
                     "query": "exact search keywords",
+                    "source": "semanticscholar",
                     "limit": 5,
                     "year_from": 2023,
                     "year_to": 2024
