@@ -30,36 +30,35 @@ class SearchAgent(BaseAgent):
             
         # Save to Database if session is provided
         if db_session:
+            from sqlalchemy.dialects.postgresql import insert
+            
             for paper_data in results:
                 identifier = paper_data.get("openalex_id") or paper_data.get("arxiv_id") or paper_data.get("doi")
                 if not identifier:
                     continue
                     
-                # Check if it already exists
-                conditions = []
-                if paper_data.get("openalex_id"):
-                    conditions.append(Paper.openalex_id == paper_data["openalex_id"])
-                # Also check old mock IDs if they were stored
-                if paper_data.get("arxiv_id"):
-                    conditions.append(Paper.arxiv_id == paper_data["arxiv_id"])
-                    conditions.append(Paper.openalex_id == f"arxiv:{paper_data['arxiv_id']}")
-                if paper_data.get("doi"):
-                    conditions.append(Paper.doi == paper_data["doi"])
-                    
-                if conditions:
-                    from sqlalchemy import or_
-                    stmt = select(Paper).where(or_(*conditions))
-                    existing = await db_session.execute(stmt)
-                    
-                    if existing.first():
-                        continue
-                        
-                # Filter only the fields that exist in the Paper model
                 valid_keys = {"openalex_id", "doi", "title", "publication_year", "citation_count", "is_open_access", "arxiv_id", "abstract", "venue", "pdf_url"}
                 filtered_data = {k: v for k, v in paper_data.items() if k in valid_keys}
-                new_paper = Paper(**filtered_data)
-                db_session.add(new_paper)
-            await db_session.commit()
+                
+                stmt = insert(Paper).values(**filtered_data)
+                
+                # We want to do nothing if either arxiv_id or openalex_id conflicts
+                # Since we don't know exactly which constraint will be hit first, 
+                # we can just use the ON CONFLICT DO NOTHING clause without specifying index for DO NOTHING
+                stmt = stmt.on_conflict_do_nothing()
+                
+                try:
+                    await db_session.execute(stmt)
+                except Exception as e:
+                    # Ignore flush errors if any happen, rollback to save the transaction
+                    print(f"Error inserting paper {identifier}: {e}")
+                    await db_session.rollback()
+                    
+            try:
+                await db_session.commit()
+            except Exception as e:
+                print(f"Error committing papers: {e}")
+                await db_session.rollback()
             
         return results
 
@@ -73,8 +72,12 @@ class SearchAgent(BaseAgent):
         if filters:
             params["filter"] = ",".join(filters)
             
+        headers = {
+            "User-Agent": "KairoStudio/1.0 (mailto:hello@kairo.studio)"
+        }
+            
         try:
-            async with httpx.AsyncClient(follow_redirects=True) as client:
+            async with httpx.AsyncClient(follow_redirects=True, headers=headers) as client:
                 response = await client.get(self.openalex_url, params=params)
                 response.raise_for_status()
                 data = response.json()
@@ -141,44 +144,48 @@ class SearchAgent(BaseAgent):
         return results
 
     async def _search_arxiv(self, query: str, limit: int, year_from: Optional[int] = None, year_to: Optional[int] = None) -> List[Dict[str, Any]]:
-        url = f"http://export.arxiv.org/api/query?search_query=all:{query.replace(' ', '+')}&max_results={limit}"
+        from mcp import ClientSession
+        from mcp.client.stdio import stdio_client, StdioServerParameters
+        import json
         
-        import urllib.request
-        import asyncio
-        
-        def fetch_arxiv():
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=10) as response:
-                return response.read()
-                
-        try:
-            xml_data = await asyncio.to_thread(fetch_arxiv)
-        except Exception as e:
-            print(f"Arxiv API failed: {e}")
-            return []
-            
-        root = ET.fromstring(xml_data)
-        ns = {"atom": "http://www.w3.org/2005/Atom"}
+        server_params = StdioServerParameters(
+            command="uvx",
+            args=["arxiv-mcp-server"]
+        )
         
         results = []
-        for entry in root.findall("atom:entry", ns):
-            id_url = entry.find("atom:id", ns).text
-            arxiv_id = id_url.split("/abs/")[-1] if "/abs/" in id_url else id_url
-            title = entry.find("atom:title", ns).text.replace("\\n", " ").strip()
-            published = entry.find("atom:published", ns).text
-            year = int(published.split("-")[0]) if published else None
-            abstract = entry.find("atom:summary", ns).text.replace("\\n", " ").strip()
+        try:
+            async with stdio_client(server_params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    
+                    response = await session.call_tool("search_papers", {"query": query})
+                    
+                    if response and hasattr(response, "content") and len(response.content) > 0:
+                        raw_text = response.content[0].text
+                        try:
+                            # Use strict=False to handle potential unescaped control characters in abstracts
+                            papers_response = json.loads(raw_text, strict=False)
+                            papers_list = papers_response.get("papers", [])
+                            
+                            for paper in papers_list[:limit]:
+                                arxiv_id = paper.get("id", "")
+                                
+                                results.append({
+                                    "arxiv_id": arxiv_id,
+                                    "openalex_id": f"https://arxiv.org/abs/{arxiv_id}",
+                                    "title": paper.get("title", "Unknown Title"),
+                                    "publication_year": None,
+                                    "abstract": paper.get("summary", "") or paper.get("abstract", ""),
+                                    "is_open_access": True,
+                                    "citation_count": 0,
+                                    "pdf_url": paper.get("url") or f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+                                })
+                        except json.JSONDecodeError as e:
+                            print(f"Failed to decode JSON from MCP ArXiv Server response: {e}")
+        except Exception as e:
+            print(f"MCP ArXiv API failed: {e}")
             
-            results.append({
-                "arxiv_id": arxiv_id,
-                "openalex_id": f"https://arxiv.org/abs/{arxiv_id}", # Mock ID for frontend rendering link fallback
-                "title": title,
-                "publication_year": year,
-                "abstract": abstract,
-                "is_open_access": True, # Arxiv is always open access
-                "citation_count": 0, # Arxiv API doesn't provide citation counts directly
-                "pdf_url": f"https://arxiv.org/pdf/{arxiv_id}.pdf"
-            })
         return results
 
     async def _search_core(self, query: str, limit: int, year_from: Optional[int] = None, year_to: Optional[int] = None) -> List[Dict[str, Any]]:

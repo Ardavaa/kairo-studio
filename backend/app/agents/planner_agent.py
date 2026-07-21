@@ -16,9 +16,9 @@ class PlannerAgent(BaseAgent):
         CRITICAL: Extract ONLY the core academic keywords for the search query. DO NOT use the entire conversational sentence. If the user prompt is in a non-English language (e.g. Indonesian), translate the search keywords to English. For example, "carikan paper terkait image captioning" should result in the query "image captioning".
         
         You have multiple databases at your disposal. Use the "source" field in your search query to select the best one:
-        - "semanticscholar": [HIGHLY RECOMMENDED] Best for ALL AI, ML, Computer Science, and general scientific keyword searches.
-        - "openalex": Excellent fallback for global interdisciplinary research.
-        - "arxiv": Use ONLY IF the user explicitly provides an arxiv ID or explicitly asks for arxiv. Do NOT use for general keyword searches as the API performs poorly on raw keywords.
+        - "arxiv": [HIGHLY RECOMMENDED] Best for AI, ML, Computer Science, and getting immediate PDF access. 
+        - "openalex": [HIGHLY RECOMMENDED] Excellent for global interdisciplinary research and reliable fallback.
+        - "semanticscholar": Use sparingly due to strict API rate limits (HTTP 429 errors).
         - "core": Best for finding open-access papers globally across disciplines.
         - "elsevier": Best for finding high-impact journal articles (Scopus/ScienceDirect).
         
