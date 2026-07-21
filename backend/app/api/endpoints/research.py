@@ -22,6 +22,7 @@ class ResearchQuery(BaseModel):
 class ResearchResponse(BaseModel):
     explanation: str
     papers: List[Any]
+    conversation_id: str | None = None
 
 @router.get("/conversations")
 async def get_conversations(db_session: AsyncSession = Depends(get_db)):
@@ -207,8 +208,56 @@ Respond with nothing but the JSON object.
         print(f"Synthesis failed: {e}")
         synthesis_response = "I found some relevant papers, but I was unable to synthesize a summary at this time."
         filtered_results = results
+        
+    # Save the conversation result to DB
+    try:
+        import json
+        new_conv.query = request.query
+        new_conv.content = synthesis_response
+        new_conv.papers = json.dumps(filtered_results)
+        await db_session.commit()
+    except Exception as e:
+        print(f"Failed to save conversation history: {e}")
                 
     return ResearchResponse(
         explanation=synthesis_response,
-        papers=filtered_results
+        papers=filtered_results,
+        conversation_id=str(new_conv.id) # Include ID so UI can track it
     )
+
+@router.delete("/conversations/{conversation_id}")
+async def delete_conversation(conversation_id: str, db_session: AsyncSession = Depends(get_db)):
+    stmt = select(Conversation).where(Conversation.id == conversation_id)
+    result = await db_session.execute(stmt)
+    conv = result.scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    await db_session.delete(conv)
+    await db_session.commit()
+    return {"status": "success"}
+
+@router.get("/conversations/{conversation_id}")
+async def get_conversation(conversation_id: str, db_session: AsyncSession = Depends(get_db)):
+    stmt = select(Conversation).where(Conversation.id == conversation_id)
+    result = await db_session.execute(stmt)
+    conv = result.scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+        
+    import json
+    papers = []
+    if conv.papers:
+        try:
+            papers = json.loads(conv.papers)
+        except:
+            pass
+            
+    return {
+        "id": str(conv.id),
+        "title": conv.title,
+        "query": conv.query,
+        "explanation": conv.content or "",
+        "papers": papers,
+        "created_at": conv.created_at.isoformat()
+    }

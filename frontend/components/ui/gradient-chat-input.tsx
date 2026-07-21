@@ -28,6 +28,7 @@ export interface GradientChatInputProps {
   onSend?: (message: string) => void;
   onViewGraph?: () => void;
   className?: string;
+  initialMessages?: ChatMessage[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -39,9 +40,10 @@ export default function GradientChatInput({
   onSend,
   onViewGraph,
   className,
+  initialMessages = [],
 }: GradientChatInputProps) {
   const [value, setValue] = React.useState("");
-  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+  const [messages, setMessages] = React.useState<ChatMessage[]>(initialMessages);
   const [selectedModel, setSelectedModel] = React.useState("Databyte m1");
   const [showModelDropdown, setShowModelDropdown] = React.useState(false);
   const [animatedPlaceholder, setAnimatedPlaceholder] = React.useState("");

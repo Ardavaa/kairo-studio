@@ -8,7 +8,7 @@ import {
   HelpCircle, Settings, X, Bookmark, ChevronDown,
   Plus, Send, Scale, Target, Lightbulb, BarChart2,
   Shield, MessageSquare, RefreshCw, Network,
-  PanelLeftClose, PanelLeftOpen
+  PanelLeftClose, PanelLeftOpen, Trash2
 } from "lucide-react";
 import GradientChatInput from "@/components/ui/gradient-chat-input";
 import KnowledgeGraph from "@/components/KnowledgeGraph";
@@ -24,6 +24,8 @@ export default function AIAssistantPage() {
   const [showGraph, setShowGraph] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [initialMessages, setInitialMessages] = useState<any[]>([]);
 
   const fetchConversations = async () => {
     try {
@@ -41,19 +43,60 @@ export default function AIAssistantPage() {
     fetchConversations();
   }, []);
 
+  const handleLoadConversation = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/research/conversations/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setActiveConversationId(id);
+        const messages = [];
+        if (data.query) {
+          messages.push({ id: 1, text: data.query, sender: "user" });
+        }
+        if (data.explanation) {
+          messages.push({ 
+            id: 2, 
+            text: data.explanation, 
+            sender: "bot", 
+            papers: data.papers,
+            showGraphButton: data.papers && data.papers.length > 0
+          });
+        }
+        setInitialMessages(messages);
+        setHasStartedChat(messages.length > 0);
+      }
+    } catch (e) {
+      console.error("Failed to load conversation", e);
+    }
+  };
+
+  const handleDeleteConversation = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // prevent triggering the load
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/research/conversations/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        if (activeConversationId === id) {
+          handleNewChat();
+        }
+        fetchConversations();
+      }
+    } catch (e) {
+      console.error("Failed to delete conversation", e);
+    }
+  };
+
+  const handleNewChat = () => {
+    setActiveConversationId(null);
+    setInitialMessages([]);
+    setHasStartedChat(false);
+  };
+
   const handleSend = async (message: string) => {
     setHasStartedChat(true);
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/research/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: message }),
-      });
-      // Refresh conversations after sending
-      fetchConversations();
-    } catch (e) {
-      console.error("Error connecting to backend.", e);
-    }
+    // Refresh conversations after sending because a new one might be created
+    setTimeout(fetchConversations, 2000); 
   };
 
   const handleViewGraph = () => {
@@ -77,7 +120,7 @@ export default function AIAssistantPage() {
           <aside className="w-[260px] bg-paper-white border-r border-soft-border flex flex-col shrink-0 animate-fade-in h-screen sticky top-0">
             <div className="h-[72px] p-4 flex items-center justify-between border-b border-transparent shrink-0 gap-2">
               <button 
-                onClick={() => setHasStartedChat(false)}
+                onClick={handleNewChat}
                 className="flex-1 flex items-center gap-2 text-[14px] font-semibold text-primary hover:bg-black/5 py-2 px-3 rounded-xl transition-colors border border-soft-border shadow-sm bg-white"
               >
                 <Plus className="w-4 h-4 text-accent" />
@@ -100,9 +143,16 @@ export default function AIAssistantPage() {
                     <div className="px-2 py-2 text-[12px] text-muted italic">No past conversations</div>
                   ) : (
                     conversations.map(conv => (
-                      <button key={conv.id} className="w-full text-left px-2.5 py-2 text-[13px] text-muted hover:bg-black/5 hover:text-primary rounded-lg truncate transition-colors">
-                        {conv.title}
-                      </button>
+                      <div key={conv.id} className={`group flex items-center justify-between w-full text-left px-2.5 py-2 text-[13px] rounded-lg transition-colors cursor-pointer ${activeConversationId === conv.id ? 'bg-black/5 text-primary font-medium' : 'text-muted hover:bg-black/5 hover:text-primary'}`} onClick={() => handleLoadConversation(conv.id)}>
+                        <span className="truncate">{conv.title}</span>
+                        <button 
+                          onClick={(e) => handleDeleteConversation(e, conv.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all"
+                          title="Delete conversation"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     ))
                   )}
                 </div>
@@ -168,6 +218,8 @@ export default function AIAssistantPage() {
             {/* Search/Chat Input Box */}
             <div className="w-full relative z-30 flex-1 flex flex-col justify-end overflow-hidden">
               <GradientChatInput
+                key={activeConversationId || 'new'}
+                initialMessages={initialMessages}
                 placeholder="Ask anything about your research..."
                 onSend={handleSend}
                 onViewGraph={handleViewGraph}

@@ -9,5 +9,8 @@ class Conversation(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String, nullable=False)
+    query = Column(String, nullable=True)
+    content = Column(String, nullable=True)  # Store the markdown explanation
+    papers = Column(String, nullable=True)  # Store JSON-serialized papers list
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
