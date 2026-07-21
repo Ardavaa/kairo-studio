@@ -15,18 +15,18 @@ class SearchAgent(BaseAgent):
         self.s2_url = "https://api.semanticscholar.org/graph/v1/paper/search"
         self.arxiv_url = "https://export.arxiv.org/api/query"
 
-    async def run(self, query: str, limit: int = 10, source: str = "openalex", db_session: Optional[AsyncSession] = None) -> List[Dict[str, Any]]:
+    async def run(self, query: str, limit: int = 10, source: str = "openalex", year_from: Optional[int] = None, year_to: Optional[int] = None, db_session: Optional[AsyncSession] = None) -> List[Dict[str, Any]]:
         source = source.lower()
         if source == "semanticscholar":
-            results = await self._search_semantic_scholar(query, limit)
+            results = await self._search_semantic_scholar(query, limit, year_from, year_to)
         elif source == "arxiv":
-            results = await self._search_arxiv(query, limit)
+            results = await self._search_arxiv(query, limit, year_from, year_to)
         elif source == "core":
-            results = await self._search_core(query, limit)
+            results = await self._search_core(query, limit, year_from, year_to)
         elif source == "elsevier":
-            results = await self._search_elsevier(query, limit)
+            results = await self._search_elsevier(query, limit, year_from, year_to)
         else:
-            results = await self._search_openalex(query, limit)
+            results = await self._search_openalex(query, limit, year_from, year_to)
             
         # Save to Database if session is provided
         if db_session:
@@ -55,7 +55,7 @@ class SearchAgent(BaseAgent):
                         continue
                         
                 # Filter only the fields that exist in the Paper model
-                valid_keys = {"openalex_id", "doi", "title", "publication_year", "citation_count", "is_open_access", "arxiv_id", "abstract", "venue"}
+                valid_keys = {"openalex_id", "doi", "title", "publication_year", "citation_count", "is_open_access", "arxiv_id", "abstract", "venue", "pdf_url"}
                 filtered_data = {k: v for k, v in paper_data.items() if k in valid_keys}
                 new_paper = Paper(**filtered_data)
                 db_session.add(new_paper)
@@ -63,8 +63,16 @@ class SearchAgent(BaseAgent):
             
         return results
 
-    async def _search_openalex(self, query: str, limit: int) -> List[Dict[str, Any]]:
+    async def _search_openalex(self, query: str, limit: int, year_from: Optional[int] = None, year_to: Optional[int] = None) -> List[Dict[str, Any]]:
         params = {"search": query, "per-page": limit}
+        filters = []
+        if year_from:
+            filters.append(f"from_publication_date:{year_from}-01-01")
+        if year_to:
+            filters.append(f"to_publication_date:{year_to}-12-31")
+        if filters:
+            params["filter"] = ",".join(filters)
+            
         try:
             async with httpx.AsyncClient(follow_redirects=True) as client:
                 response = await client.get(self.openalex_url, params=params)
@@ -76,20 +84,33 @@ class SearchAgent(BaseAgent):
             
         results = []
         for work in data.get("results", []):
+            oa_data = work.get("open_access", {})
+            pdf_url = oa_data.get("oa_url")
+            if pdf_url and not pdf_url.endswith(".pdf") and "arxiv.org" not in pdf_url:
+                pdf_url = None # ensure it's a PDF or arxiv url for safety
+                
             results.append({
                 "openalex_id": work.get("id"),
                 "doi": work.get("doi"),
                 "title": work.get("title"),
                 "publication_year": work.get("publication_year"),
                 "citation_count": work.get("cited_by_count", 0),
-                "is_open_access": work.get("open_access", {}).get("is_oa", False)
+                "is_open_access": oa_data.get("is_oa", False),
+                "pdf_url": pdf_url
             })
         return results
 
-    async def _search_semantic_scholar(self, query: str, limit: int) -> List[Dict[str, Any]]:
+    async def _search_semantic_scholar(self, query: str, limit: int, year_from: Optional[int] = None, year_to: Optional[int] = None) -> List[Dict[str, Any]]:
         # Fields we want to retrieve
         fields = "paperId,externalIds,title,year,citationCount,isOpenAccess,abstract,venue"
         params = {"query": query, "limit": limit, "fields": fields}
+        if year_from and year_to:
+            params["year"] = f"{year_from}-{year_to}"
+        elif year_from:
+            params["year"] = f"{year_from}-"
+        elif year_to:
+            params["year"] = f"-{year_to}"
+            
         headers = {}
         if settings.S2_API_KEY:
             headers["x-api-key"] = settings.S2_API_KEY
@@ -119,7 +140,7 @@ class SearchAgent(BaseAgent):
             })
         return results
 
-    async def _search_arxiv(self, query: str, limit: int) -> List[Dict[str, Any]]:
+    async def _search_arxiv(self, query: str, limit: int, year_from: Optional[int] = None, year_to: Optional[int] = None) -> List[Dict[str, Any]]:
         url = f"http://export.arxiv.org/api/query?search_query=all:{query.replace(' ', '+')}&max_results={limit}"
         
         import urllib.request
@@ -155,11 +176,12 @@ class SearchAgent(BaseAgent):
                 "publication_year": year,
                 "abstract": abstract,
                 "is_open_access": True, # Arxiv is always open access
-                "citation_count": 0 # Arxiv API doesn't provide citation counts directly
+                "citation_count": 0, # Arxiv API doesn't provide citation counts directly
+                "pdf_url": f"https://arxiv.org/pdf/{arxiv_id}.pdf"
             })
         return results
 
-    async def _search_core(self, query: str, limit: int) -> List[Dict[str, Any]]:
+    async def _search_core(self, query: str, limit: int, year_from: Optional[int] = None, year_to: Optional[int] = None) -> List[Dict[str, Any]]:
         if not settings.CORE_API_KEY:
             print("CORE API integration is pending API key configuration.")
             return []
@@ -191,7 +213,7 @@ class SearchAgent(BaseAgent):
             })
         return results
 
-    async def _search_elsevier(self, query: str, limit: int) -> List[Dict[str, Any]]:
+    async def _search_elsevier(self, query: str, limit: int, year_from: Optional[int] = None, year_to: Optional[int] = None) -> List[Dict[str, Any]]:
         if not settings.ELSEVIER_API_KEY:
             print("Elsevier API integration is pending API key configuration.")
             return []

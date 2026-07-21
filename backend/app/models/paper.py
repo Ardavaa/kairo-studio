@@ -18,6 +18,7 @@ class Paper(Base):
     venue = Column(String)
     citation_count = Column(Integer, default=0)
     is_open_access = Column(Boolean, default=False)
+    pdf_url = Column(String, nullable=True)
     
     authors_raw = Column(JSONB, default=list)
 

@@ -7,20 +7,20 @@ from app.schemas.agent import PlannerOutput
 class PlannerAgent(BaseAgent):
     """Agent responsible for interpreting user requests into a concrete research plan."""
     
-    async def run(self, user_prompt: str) -> PlannerOutput:
+    async def run(self, user_prompt: str, model: str = settings.DATABYTE_MODEL) -> PlannerOutput:
         system_prompt = f"""
         You are the Planner Agent for Kairo Studio, an AI-native Research Operating System.
         Your job is to take a user's research goal and decompose it into an actionable search strategy.
         Extract the intent and formulate specific keyword combinations suitable for scholarly search engines.
         
-        CRITICAL: For your first search_query, use the EXACT key phrase the user provided without appending generic terms like "deep learning" or "AI" or "machine learning". Scholarly search engines like OpenAlex perform poorly when specific concepts are diluted with generic keywords.
+        CRITICAL: Extract ONLY the core academic keywords for the search query. DO NOT use the entire conversational sentence. If the user prompt is in a non-English language (e.g. Indonesian), translate the search keywords to English. For example, "carikan paper terkait image captioning" should result in the query "image captioning".
         
         You have multiple databases at your disposal. Use the "source" field in your search query to select the best one:
-        - "semanticscholar": Best for general Computer Science, Machine Learning, AI, and related fields.
-        - "arxiv": Best for cutting-edge preprints in CS, Math, and Physics.
+        - "semanticscholar": [HIGHLY RECOMMENDED] Best for ALL AI, ML, Computer Science, and general scientific keyword searches.
+        - "openalex": Excellent fallback for global interdisciplinary research.
+        - "arxiv": Use ONLY IF the user explicitly provides an arxiv ID or explicitly asks for arxiv. Do NOT use for general keyword searches as the API performs poorly on raw keywords.
         - "core": Best for finding open-access papers globally across disciplines.
         - "elsevier": Best for finding high-impact journal articles (Scopus/ScienceDirect).
-        - "openalex": Good fallback for general sciences and humanities.
         
         If the user asks a general question, greetings, or something that does not require searching scholarly papers, set "needs_search" to false, leave "search_queries" empty, and provide your response in "direct_answer".
 
@@ -43,7 +43,7 @@ class PlannerAgent(BaseAgent):
         """
 
         response = await llm_client.chat.completions.create(
-            model=settings.DATABYTE_MODEL,
+            model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
