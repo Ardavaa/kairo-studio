@@ -61,7 +61,7 @@ export default function AIAssistantPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-warm-white text-primary font-sans relative overflow-hidden">
+    <div className="flex h-screen bg-warm-white text-primary font-sans relative overflow-hidden">
       {/* Knowledge Graph Modal */}
       {showGraph && <KnowledgeGraph onClose={() => setShowGraph(false)} />}
       {/* Background Glow */}
@@ -70,7 +70,7 @@ export default function AIAssistantPage() {
       )}
 
       {/* Page Container (accounting for global sidebar) */}
-      <div className="flex-1 ml-[280px] flex min-h-screen relative z-10 transition-all">
+      <div className="flex-1 ml-[280px] flex h-screen relative z-10 transition-all">
         
         {/* Secondary Sidebar: Chat History */}
         {isSidebarOpen && (
@@ -112,8 +112,7 @@ export default function AIAssistantPage() {
         )}
 
         {/* Main Content Area */}
-        {/* Main Content Area */}
-        <main className="flex-1 min-w-0 flex flex-col relative bg-warm-white">
+        <main className="flex-1 min-w-0 flex flex-col relative bg-warm-white h-screen overflow-hidden">
           {/* Floating Expand Sidebar Button when closed */}
           {!isSidebarOpen && (
             <button 
@@ -127,7 +126,7 @@ export default function AIAssistantPage() {
 
           {/* Topbar */}
           {hasStartedChat && (
-            <header className="h-[72px] flex items-center justify-end px-10 shrink-0 sticky top-0 bg-warm-white/90 backdrop-blur-md z-40 border-b border-transparent transition-all">
+            <header className="h-[72px] flex items-center justify-end px-10 shrink-0 bg-warm-white/90 backdrop-blur-md z-40 border-b border-transparent transition-all">
               <div className="flex items-center gap-8">
                 <a href="#" className="text-sm font-semibold text-primary hover:text-accent transition-colors">
                   Journals & Conferences
@@ -153,10 +152,10 @@ export default function AIAssistantPage() {
           )}
 
           {/* Center Content */}
-          <div className={`flex-1 flex flex-col items-center px-8 pb-12 transition-all duration-700 ease-in-out ${hasStartedChat ? 'pt-8' : 'pt-24'}`}>
+          <div className={`flex-1 flex flex-col items-center transition-all overflow-hidden duration-700 ease-in-out ${hasStartedChat ? 'pt-0' : 'pt-24'}`}>
             
             {!hasStartedChat && (
-              <div className="flex flex-col items-center animate-fade-in text-center mt-[10vh]">
+              <div className="flex flex-col items-center animate-fade-in text-center mt-[10vh] px-8">
                 <h1 className="font-serif text-[42px] font-normal text-primary mb-3">
                   Ask away, Ardava!
                 </h1>
@@ -167,12 +166,12 @@ export default function AIAssistantPage() {
             )}
 
             {/* Search/Chat Input Box */}
-            <div className="w-full max-w-[800px] relative z-30 flex-1 flex flex-col justify-end">
+            <div className="w-full relative z-30 flex-1 flex flex-col justify-end overflow-hidden">
               <GradientChatInput
                 placeholder="Ask anything about your research..."
                 onSend={handleSend}
                 onViewGraph={handleViewGraph}
-                className="w-full max-w-full"
+                className={hasStartedChat ? "w-full h-full" : "w-full"}
               />
             </div>
 

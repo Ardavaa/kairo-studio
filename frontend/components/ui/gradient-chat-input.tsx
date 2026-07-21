@@ -273,11 +273,13 @@ export default function GradientChatInput({
   };
 
   return (
-    <div className={cn("relative mx-auto w-full max-w-4xl flex flex-col h-full", className)}>
-      <div className="flex-1 flex flex-col gap-6 px-2 pb-8 pt-4">
-        <AnimatePresence initial={false}>
-          {messages.map((m, index) => {
-            const isLastMessage = index === messages.length - 1;
+    <div className={cn("relative mx-auto w-full flex flex-col", messages.length > 0 ? "h-full" : "", className)}>
+      {messages.length > 0 && (
+        <div className="flex-1 overflow-y-auto w-full flex flex-col items-center no-scrollbar">
+          <div className="w-full max-w-[800px] flex flex-col gap-6 px-4 pb-8 pt-4 mt-auto">
+          <AnimatePresence initial={false}>
+            {messages.map((m, index) => {
+              const isLastMessage = index === messages.length - 1;
             return (
             <motion.div
               key={m.id}
@@ -437,11 +439,13 @@ export default function GradientChatInput({
             </motion.div>
             );
           })}
-        </AnimatePresence>
-      </div>
+          </AnimatePresence>
+          </div>
+        </div>
+      )}
 
       {/* the input card */}
-      <div className="sticky bottom-8 z-10 w-full mt-auto">
+      <div className="shrink-0 w-full max-w-[800px] mx-auto px-4 pb-8 pt-2">
         <div className="relative rounded-[24px] border border-soft-border bg-paper-white shadow-md">
           <div className="relative z-[2] flex flex-col gap-2 rounded-[20px] bg-paper-white p-3">
             <textarea
