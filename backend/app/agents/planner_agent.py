@@ -15,6 +15,11 @@ class PlannerAgent(BaseAgent):
         
         CRITICAL: Extract ONLY the core academic keywords for the search query. DO NOT use the entire conversational sentence. If the user prompt is in a non-English language (e.g. Indonesian), translate the search keywords to English. For example, "carikan paper terkait image captioning" should result in the query "image captioning".
         
+        If the source is "arxiv", you MUST formulate queries using ArXiv's advanced search syntax:
+        - Use QUOTED PHRASES for exact concepts: "medical image captioning"
+        - Combine concepts with AND/OR: "self-supervised" AND "image captioning" AND ("medical" OR "clinical")
+        - If the user asks for recent or state-of-the-art papers, focus on the core topic and rely on the `year_from` parameter instead of adding "state of the art" as a text keyword.
+        
         You have multiple databases at your disposal. Use the "source" field in your search query to select the best one:
         - "arxiv": [HIGHLY RECOMMENDED] Best for AI, ML, Computer Science, and getting immediate PDF access. 
         - "openalex": [HIGHLY RECOMMENDED] Excellent for global interdisciplinary research and reliable fallback.

@@ -149,16 +149,21 @@ Here are the top papers found:
         abstract = p.get('abstract', 'No abstract')
         if abstract and len(abstract) > 300:
             abstract = abstract[:300] + "..."
-        synthesis_prompt += f"\n[{idx}] Title: {p['title']}\nAbstract: {abstract}\n"
+        year = p.get('publication_year', 'N/A')
+        url = p.get('openalex_id') or p.get('pdf_url')
+        synthesis_prompt += f"\n[{idx}] Title: {p['title']}\nYear: {year}\nURL: {url}\nAbstract: {abstract}\n"
         
     synthesis_prompt += """
 You must synthesize the answer based ONLY on the provided papers above.
-DO NOT invent, hallucinate, or cite any papers that are not in the list above.
-DO NOT include a "References" or "Daftar Pustaka" section at the end of your response! The UI will automatically display the sources.
 
 You MUST respond in strict JSON format with exactly two keys:
-1. "explanation": A comprehensive, highly structured markdown string answering the user's query. Use formatting (bolding, lists, tables). Cite relevant papers inline using ONLY their exact index, like [0] or [1].
-2. "relevant_indices": A JSON array of integers containing ONLY the indices of the papers from the list above that are actually relevant.
+1. "explanation": A comprehensive markdown string answering the user's query. 
+   - Start with an enthusiastic, concise introductory sentence.
+   - You MUST generate a Markdown Table containing the most relevant papers. The table should have columns: | Paper | Year | Core contribution |.
+   - In the "Paper" column, you MUST format the title as a clickable markdown link using the provided URL (e.g., `[Title of Paper](https://...)`).
+   - If a paper is only partially relevant, include it but clarify its scope in the contribution column. Do not be overly defensive or pessimistic.
+   - DO NOT include a "References" section at the bottom.
+2. "relevant_indices": A JSON array of integers containing ONLY the indices of the papers that are actually relevant.
 
 Respond with nothing but the JSON object.
 """
