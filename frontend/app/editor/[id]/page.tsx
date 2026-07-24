@@ -7,7 +7,7 @@ import {
   Bold, Italic, Underline, Heading, List, ListOrdered, Sigma, Code, AtSign, MessageSquare,
   Undo, Redo, ZoomIn, ZoomOut, Maximize, GripVertical, Search, Book, PenTool, Settings, HelpCircle as HelpIcon, FileText,
   FolderPlus, FilePlus, Upload, Image as ImageIcon, Eye, MoreHorizontal, Trash2, Edit2, Folder,
-  ChevronRight, ChevronDown
+  ChevronRight, ChevronDown, AlertCircle
 } from "lucide-react";
 import Link from "next/link";
 import Editor from "@monaco-editor/react";
@@ -104,10 +104,43 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
   const editorRef = useRef<any>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
-  const [activeTab, setActiveTab] = useState<"files" | "search" | "outline" | null>("files");
+  const [activeTab, setActiveTab] = useState<"files" | "search" | "outline" | "errors" | null>("files");
   const [activeFile, setActiveFile] = useState<string>("main.typ");
   const [creatingItem, setCreatingItem] = useState<'file' | 'folder' | null>(null);
   const [createInput, setCreateInput] = useState("");
+  
+  const parsedErrors = useMemo(() => {
+    if (!error) return [];
+    const errorsList: { message: string, file: string, line: number, col: number, raw: string }[] = [];
+    const blocks = error.split(/(?=error: |warning: )/g);
+    
+    for (const block of blocks) {
+      if (!block.trim()) continue;
+      const lines = block.split('\n');
+      let message = lines[0].replace(/^(error|warning):\s*/, '').trim();
+      
+      const fileLineMatch = block.match(/┌─\s*(.*?):(\d+):(\d+)/);
+      let file = "main.typ";
+      let line = 1;
+      let col = 1;
+      
+      if (fileLineMatch) {
+        const fullPath = fileLineMatch[1];
+        line = parseInt(fileLineMatch[2], 10);
+        col = parseInt(fileLineMatch[3], 10);
+        
+        const projMatch = fullPath.match(/proj_\d+[\\\/](.+)/);
+        if (projMatch) {
+          file = projMatch[1].replace(/\\/g, '/');
+        } else {
+          file = fullPath.split(/[\\/]/).pop() || "main.typ";
+        }
+      }
+      
+      errorsList.push({ message, file, line, col, raw: block });
+    }
+    return errorsList;
+  }, [error]);
   
   const [projectFiles, setProjectFiles] = useState<{ name: string, type: 'typst' | 'image' | 'bib' | 'other' | 'folder' }[]>([]);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
@@ -710,6 +743,14 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
             className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${activeTab === 'outline' ? 'bg-[#E5E7EB] text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>
             <Book className="w-[20px] h-[20px]" strokeWidth={2} />
           </button>
+          <div className="relative">
+            <button 
+              onClick={() => setActiveTab(activeTab === 'errors' ? null : 'errors')}
+              className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${activeTab === 'errors' ? (error ? 'bg-red-100 text-red-600' : 'bg-[#E5E7EB] text-gray-800') : (error ? 'text-red-500 hover:bg-red-50' : 'text-gray-500 hover:bg-gray-100')}`}>
+              <AlertCircle className="w-[20px] h-[20px]" strokeWidth={2} />
+            </button>
+            {error && <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />}
+          </div>
 
           <div className="flex-1" />
           
@@ -1106,6 +1147,52 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                 </div>
               </div>
             )}
+
+            {activeTab === 'errors' && (
+              <div className="p-4 flex flex-col h-full overflow-hidden">
+                <div className="h-[52px] flex items-center shrink-0">
+                  <h2 className="font-bold text-gray-900 text-[15px]">Problems</h2>
+                </div>
+                <div className="flex-1 overflow-y-auto mt-2 custom-scrollbar pr-2">
+                  {parsedErrors.length === 0 ? (
+                    <div className="text-sm text-gray-500 mt-4 text-center">No compilation errors detected.</div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {parsedErrors.map((err, idx) => (
+                        <div 
+                          key={idx} 
+                          className="bg-red-50/50 border border-red-100 rounded-md p-3 cursor-pointer hover:bg-red-50 transition-colors group"
+                          onClick={() => {
+                            if (activeFile !== err.file) {
+                              handleFileClick(err.file);
+                            }
+                            setTimeout(() => {
+                              if (editorRef.current) {
+                                editorRef.current.revealLineInCenter(err.line);
+                                editorRef.current.setPosition({ lineNumber: err.line, column: err.col });
+                                editorRef.current.focus();
+                              }
+                            }, 150);
+                          }}
+                        >
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-sm font-semibold text-red-700 leading-snug break-words">
+                                {err.message}
+                              </span>
+                              <span className="text-[12px] text-red-500/80 mt-1 font-mono">
+                                {err.file}:{err.line}:{err.col}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1225,12 +1312,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
               )}
 
               <div className="min-h-full min-w-max p-12 flex flex-col items-center">
-                {error && (
-                  <div className="w-[794px] bg-red-50 border border-red-200 text-red-700 p-4 rounded-md shadow-sm mb-4 z-10">
-                    <h3 className="font-bold mb-2">Compilation Error</h3>
-                    <pre className="whitespace-pre-wrap text-[13px] font-mono">{error}</pre>
-                  </div>
-                )}
+
 
                 {memoizedSvgPages.map((svgContent, idx) => (
                   <div 
