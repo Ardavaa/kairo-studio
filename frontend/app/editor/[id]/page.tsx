@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import {
   ChevronLeft, File, Edit, View, HelpCircle, Cloud, Share, Download,
@@ -117,6 +117,127 @@ export default function EditorPage({ params }: { params: { id: string } }) {
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, fileName: string } | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
 
+  // Search & Replace states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [replaceQuery, setReplaceQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<{ file: string, matches: {line: number, col: number, text: string, matchStart: number, matchLength: number}[] }[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchCaseSensitive, setSearchCaseSensitive] = useState(false);
+  const [collapsedSearchResults, setCollapsedSearchResults] = useState<Record<string, boolean>>({});
+
+  // Debounce search effect
+  useEffect(() => {
+    if (!searchQuery) {
+      setSearchResults([]);
+      return;
+    }
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch(`/api/search?id=default&q=${encodeURIComponent(searchQuery)}&casesensitive=${searchCaseSensitive}`);
+        const data = await res.json();
+        setSearchResults(data.results || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, searchCaseSensitive]);
+
+  const handleSearchResultClick = (file: string, match: any) => {
+    handleFileClick(file);
+    setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.revealLineInCenter(match.line);
+        editorRef.current.setSelection({
+          startLineNumber: match.line,
+          startColumn: match.col,
+          endLineNumber: match.line,
+          endColumn: match.col + match.matchLength
+        });
+        editorRef.current.focus();
+      }
+    }, 150); // slight delay to allow editor to load new file content
+  };
+
+  const handleReplace = async (file: string, match: any) => {
+    try {
+      const res = await fetch(`/api/replace?id=default`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file,
+          search: searchQuery,
+          replace: replaceQuery,
+          line: match.line,
+          matchStart: match.matchStart,
+          casesensitive: searchCaseSensitive
+        })
+      });
+      if (res.ok) {
+        if (file === activeFile) {
+          fetch(`/api/files/content?id=default&name=${encodeURIComponent(file)}`)
+            .then(r => r.text())
+            .then(text => {
+              setCode(text);
+              if (editorRef.current) {
+                editorRef.current.setValue(text);
+              }
+            });
+        }
+        const currentSearch = searchQuery;
+        setSearchQuery(""); 
+        setTimeout(() => setSearchQuery(currentSearch), 10);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleReplaceAll = async (file?: string) => {
+    try {
+      const promises = [];
+      const filesToReplace = file ? [searchResults.find(r => r.file === file)!] : searchResults;
+      
+      for (const result of filesToReplace) {
+        promises.push(fetch(`/api/replace?id=default`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file: result.file,
+            search: searchQuery,
+            replace: replaceQuery,
+            casesensitive: searchCaseSensitive
+          })
+        }));
+      }
+
+      await Promise.all(promises);
+      
+      // Refresh active file if it was part of the replace
+      const wasActiveFileReplaced = filesToReplace.some(r => r && r.file === activeFile);
+      if (wasActiveFileReplaced) {
+        fetch(`/api/files/content?id=default&name=${encodeURIComponent(activeFile)}`)
+          .then(r => r.text())
+          .then(text => {
+            setCode(text);
+            if (editorRef.current) {
+              editorRef.current.setValue(text);
+            }
+          });
+      }
+
+      const currentSearch = searchQuery;
+      setSearchQuery("");
+      setTimeout(() => setSearchQuery(currentSearch), 10);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   // Close context menu on click outside
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
@@ -154,6 +275,15 @@ export default function EditorPage({ params }: { params: { id: string } }) {
       }
     };
   }, []);
+
+  const memoizedSvgPages = useMemo(() => {
+    return pages.map((svg, idx) => (
+      <div 
+        key={idx}
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+    ));
+  }, [pages]);
 
   const handleDeleteFile = async (fileName: string) => {
     if (fileName === "main.typ") return;
@@ -732,24 +862,112 @@ export default function EditorPage({ params }: { params: { id: string } }) {
             )}
             
             {activeTab === 'search' && (
-              <div className="p-4 flex flex-col h-full">
+              <div className="p-4 flex flex-col h-full overflow-hidden">
                 <div className="h-[44px] flex items-center shrink-0 mt-2 mb-2">
                   <h2 className="font-bold text-gray-900 text-[15px]">Search & Replace</h2>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 shrink-0">
                   <div className="border border-gray-300/80 rounded-[4px] bg-white flex items-center px-2 py-1.5 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent shadow-sm">
-                    <input type="text" placeholder="Search" className="outline-none text-[13px] w-full text-gray-700 placeholder:text-gray-400" />
+                    <input 
+                      type="text" 
+                      placeholder="Search" 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="outline-none text-[13px] w-full text-gray-700 placeholder:text-gray-400" 
+                    />
                     <div className="flex items-center gap-1.5 text-gray-400">
-                      <span className="text-[10px] font-bold">Aa</span>
-                      <Search className="w-3 h-3" />
+                      <button 
+                        title="Match Case"
+                        onClick={() => setSearchCaseSensitive(!searchCaseSensitive)}
+                        className={`px-1 py-0.5 rounded ${searchCaseSensitive ? 'bg-accent/10 text-accent font-bold' : 'hover:bg-gray-100 font-medium'}`}
+                      >
+                        <span className="text-[10px]">Aa</span>
+                      </button>
                     </div>
                   </div>
                   <div className="border border-gray-300/80 rounded-[4px] bg-white flex items-center px-2 py-1.5 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent shadow-sm">
-                    <input type="text" placeholder="Replace" className="outline-none text-[13px] w-full text-gray-700 placeholder:text-gray-400" />
-                    <div className="flex flex-col items-center leading-none text-gray-400">
-                      <span className="text-[8px] font-bold">a&gt;b</span>
+                    <input 
+                      type="text" 
+                      placeholder="Replace" 
+                      value={replaceQuery}
+                      onChange={(e) => setReplaceQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleReplaceAll();
+                      }}
+                      className="outline-none text-[13px] w-full text-gray-700 placeholder:text-gray-400" 
+                    />
+                    <div className="flex items-center gap-1">
+                      <button 
+                        title="Replace All"
+                        onClick={() => handleReplaceAll()}
+                        disabled={!searchQuery || searchResults.length === 0}
+                        className="p-1 hover:bg-gray-100 rounded text-gray-500 disabled:opacity-50"
+                      >
+                        <span className="text-[10px] font-bold leading-none block">a&gt;b</span>
+                      </button>
                     </div>
                   </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto mt-4 custom-scrollbar -mx-4 px-4 pb-4">
+                  {isSearching ? (
+                    <div className="text-[12px] text-gray-400 text-center py-4">Searching...</div>
+                  ) : searchResults.length > 0 ? (
+                    <div className="flex flex-col gap-3">
+                      {searchResults.map((result, i) => (
+                        <div key={i} className="flex flex-col">
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer group text-[13px] font-medium text-gray-700 hover:bg-gray-50 p-1 -mx-1 rounded transition-colors"
+                            onClick={() => setCollapsedSearchResults(prev => ({...prev, [result.file]: !prev[result.file]}))}
+                          >
+                            <span className="text-gray-400">
+                              {collapsedSearchResults[result.file] ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </span>
+                            <span className="truncate flex-1">{result.file}</span>
+                            <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{result.matches.length}</span>
+                            
+                            <button 
+                              title="Replace All in File"
+                              onClick={(e) => { e.stopPropagation(); handleReplaceAll(result.file); }}
+                              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded text-gray-500 transition-opacity"
+                            >
+                              <span className="text-[9px] font-bold block leading-none">a&gt;b</span>
+                            </button>
+                          </div>
+
+                          {!collapsedSearchResults[result.file] && (
+                            <div className="flex flex-col mt-1">
+                              {result.matches.map((match, j) => (
+                                <div 
+                                  key={j} 
+                                  className="flex items-start gap-2 cursor-pointer group hover:bg-accent/5 p-1 -mx-1 rounded transition-colors"
+                                  onClick={() => handleSearchResultClick(result.file, match)}
+                                >
+                                  <div className="w-[20px] shrink-0 flex justify-end opacity-0 group-hover:opacity-100 pt-0.5">
+                                    <button 
+                                      title="Replace"
+                                      onClick={(e) => { e.stopPropagation(); handleReplace(result.file, match); }}
+                                      className="hover:bg-accent/20 p-0.5 rounded text-accent transition-colors"
+                                    >
+                                      <span className="text-[8px] font-bold block leading-none">a&gt;b</span>
+                                    </button>
+                                  </div>
+                                  <div className="text-[12px] text-gray-600 font-mono break-all leading-tight py-0.5 flex-1 pl-4 relative">
+                                    <span className="absolute left-0 text-gray-400 select-none text-[10px]">{match.line}</span>
+                                    <span>{match.text.substring(0, match.matchStart)}</span>
+                                    <span className="bg-yellow-200 text-gray-900 rounded-[2px] px-[1px] font-medium">{match.text.substring(match.matchStart, match.matchStart + match.matchLength)}</span>
+                                    <span>{match.text.substring(match.matchStart + match.matchLength)}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : searchQuery ? (
+                    <div className="text-[12px] text-gray-400 text-center py-4">No results found</div>
+                  ) : null}
                 </div>
               </div>
             )}
@@ -896,7 +1114,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
                   </div>
                 )}
 
-                {pages.map((svg, idx) => (
+                {memoizedSvgPages.map((svgContent, idx) => (
                   <div 
                     key={idx}
                     className="bg-white shadow-md border border-gray-200/50 mb-8 origin-top [&>svg]:!max-w-none transition-all duration-200 ease-out" 
@@ -904,8 +1122,9 @@ export default function EditorPage({ params }: { params: { id: string } }) {
                       transform: `scale(${zoom / 100})`, 
                       marginBottom: `${Math.max(32, (zoom/100 - 1) * 1123 + 32)}px`
                     }}
-                    dangerouslySetInnerHTML={{ __html: svg }}
-                  />
+                  >
+                    {svgContent}
+                  </div>
                 ))}
 
                 {pages.length === 0 && !error && (
