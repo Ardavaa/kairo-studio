@@ -297,7 +297,7 @@ export default function GradientChatInput({
               <div className={cn(
                 "break-words text-[15px] flex flex-col gap-4",
                 m.sender === "user"
-                  ? "rounded-2xl bg-black/5 px-5 py-4 text-primary max-w-[70%]"
+                  ? "rounded-2xl bg-black/5 px-5 py-4 text-primary max-w-[90%] md:max-w-[70%]"
                   : "bg-transparent text-primary w-full max-w-full"
               )}>
                 {m.isLoading ? (

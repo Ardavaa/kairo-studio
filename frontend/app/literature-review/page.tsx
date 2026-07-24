@@ -15,10 +15,10 @@ export default function LiteratureReviewPage() {
       
 
       {/* Main Area */}
-      <main className="flex-1 ml-[280px] min-w-0 flex flex-col bg-warm-white relative animate-page-in">
+      <main className="flex-1 ml-0 md:ml-[280px] pt-[60px] md:pt-0 min-w-0 flex flex-col bg-warm-white relative animate-page-in">
         
         {/* Topbar */}
-        <header className="h-[72px] bg-warm-white/90 backdrop-blur flex items-center justify-end px-10 sticky top-0 z-30">
+        <header className="h-[72px] bg-warm-white/90 backdrop-blur hidden md:flex items-center justify-end px-10 sticky top-0 z-30">
           <div className="flex items-center gap-8 text-[13px] font-medium text-primary">
             <a href="#" className="hover:text-accent transition-colors">Journals & Conferences</a>
             <button className="flex items-center gap-1.5 hover:text-accent transition-colors">
@@ -36,22 +36,22 @@ export default function LiteratureReviewPage() {
           </div>
         </header>
 
-        <div className="flex-1 flex px-10 pb-16 gap-10">
+        <div className="flex-1 flex flex-col xl:flex-row px-4 md:px-10 pb-16 gap-6 xl:gap-10">
           
           {/* Main Form Column */}
           <div className="flex-1 min-w-0 flex flex-col relative">
             
             {/* Header */}
-            <div className="relative pt-6 pb-8">
-              <div className="absolute right-0 top-0 pointer-events-none w-[500px] h-full flex items-center justify-end overflow-hidden opacity-60">
+            <div className="relative pt-4 md:pt-6 pb-6 md:pb-8">
+              <div className="absolute right-0 top-0 pointer-events-none w-[500px] h-full hidden xl:flex items-center justify-end overflow-hidden opacity-60">
                 <img src="/building-structure.png" alt="Building Structure" className="w-full h-auto object-contain object-right" />
               </div>
 
               <div className="relative z-10 max-w-[800px]">
-                <h1 className="font-serif text-[42px] leading-tight text-primary mb-3">
+                <h1 className="font-serif text-3xl md:text-[42px] leading-tight text-primary mb-3">
                   Literature Review
                 </h1>
-                <p className="text-base text-muted mb-4">
+                <p className="text-sm md:text-base text-muted mb-4">
                   Generate comprehensive literature reviews with the power of AI.
                 </p>
                 <button className="flex items-center gap-2 text-accent font-medium text-[13px] hover:underline">
@@ -61,7 +61,7 @@ export default function LiteratureReviewPage() {
             </div>
 
             {/* Tabs Row */}
-            <div className="flex gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <div className="flex-1 bg-paper-white border-b-2 border-accent rounded-t-xl p-5 cursor-pointer">
                 <div className="flex items-center gap-3 mb-2">
                   <Sparkles className="w-5 h-5 text-accent" />
@@ -85,14 +85,14 @@ export default function LiteratureReviewPage() {
             </div>
 
             {/* Form Container */}
-            <div className="bg-paper-white border border-soft-border rounded-xl rounded-tl-none p-8 shadow-sm flex flex-col gap-10">
+            <div className="bg-paper-white border border-soft-border rounded-xl sm:rounded-tl-none p-5 sm:p-8 shadow-sm flex flex-col gap-8 sm:gap-10">
               
               {/* Step 1 */}
               <div>
                 <h2 className="flex items-center gap-2 text-[15px] font-bold text-primary mb-4">
                   <Sparkles className="w-4 h-4" /> 1. Describe your research topic
                 </h2>
-                <div className="flex gap-8">
+                <div className="flex flex-col xl:flex-row gap-6 xl:gap-8">
                   <div className="flex-1">
                     <div className="relative mb-4">
                       <textarea 
@@ -119,7 +119,7 @@ export default function LiteratureReviewPage() {
                     </div>
                   </div>
                   
-                  <div className="w-[280px] shrink-0 bg-warm-white/50 rounded-xl p-5">
+                  <div className="w-full xl:w-[280px] shrink-0 bg-warm-white/50 rounded-xl p-5">
                     <h4 className="text-[13px] font-bold text-primary mb-4">What AI will do</h4>
                     <ul className="space-y-4">
                       <li className="flex items-start gap-3 text-[12px] text-primary/80 font-medium">
@@ -150,7 +150,7 @@ export default function LiteratureReviewPage() {
                 <h2 className="flex items-center gap-2 text-[15px] font-bold text-primary mb-4">
                   2. Choose review type <Info className="w-3.5 h-3.5 text-muted cursor-pointer" />
                 </h2>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                   
                   {/* Card 1 (Active) */}
                   <div className="border border-accent bg-accent/5 rounded-xl p-4 cursor-pointer relative overflow-hidden">
@@ -192,10 +192,10 @@ export default function LiteratureReviewPage() {
               </div>
 
               {/* Steps 3, 4, 5 Row */}
-              <div className="grid grid-cols-12 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8">
                 
                 {/* 3. Sources */}
-                <div className="col-span-5">
+                <div className="md:col-span-5">
                    <h2 className="flex items-center gap-2 text-[13px] font-bold text-primary mb-4">
                      3. Sources <Info className="w-3.5 h-3.5 text-muted cursor-pointer" />
                    </h2>
@@ -232,7 +232,7 @@ export default function LiteratureReviewPage() {
                 </div>
 
                 {/* 4. Publication year range */}
-                <div className="col-span-4 pl-4 border-l border-soft-border">
+                <div className="md:col-span-4 pl-0 md:pl-4 border-none md:border-l border-t border-soft-border md:border-t-0 pt-6 md:pt-0">
                    <h2 className="flex items-center gap-2 text-[13px] font-bold text-primary mb-4">
                      4. Publication year range <Info className="w-3.5 h-3.5 text-muted cursor-pointer" />
                    </h2>
@@ -255,7 +255,7 @@ export default function LiteratureReviewPage() {
                 </div>
 
                 {/* 5. Reference style */}
-                <div className="col-span-3 pl-4 border-l border-soft-border">
+                <div className="md:col-span-3 pl-0 md:pl-4 border-none md:border-l border-t border-soft-border md:border-t-0 pt-6 md:pt-0">
                    <h2 className="flex items-center gap-2 text-[13px] font-bold text-primary mb-4">
                      5. Reference style <Info className="w-3.5 h-3.5 text-muted cursor-pointer" />
                    </h2>
@@ -280,7 +280,7 @@ export default function LiteratureReviewPage() {
           </div>
 
           {/* Right Sidebar (Review Configuration) */}
-          <div className="w-[320px] shrink-0">
+          <div className="w-full xl:w-[320px] shrink-0">
              <div className="bg-paper-white border border-soft-border rounded-xl p-6 shadow-sm sticky top-28">
                 
                 <div className="flex items-center justify-between mb-8">

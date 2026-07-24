@@ -18,9 +18,9 @@ export default function Page() {
     <div className="flex min-h-screen bg-warm-white text-primary">
 
       {/* Main Content */}
-      <main className="flex-1 ml-[280px] min-w-0 flex flex-col relative animate-page-in">
+      <main className="flex-1 ml-0 md:ml-[280px] pt-[60px] md:pt-0 min-w-0 flex flex-col relative animate-page-in">
         {/* Topbar */}
-        <header className="h-[72px] bg-warm-white flex items-center justify-between px-10 sticky top-0 z-20">
+        <header className="h-[72px] bg-warm-white hidden md:flex items-center justify-between px-10 sticky top-0 z-20">
           <div className="flex items-center gap-8">
             {/* Left side empty for spacing */}
           </div>
@@ -40,44 +40,44 @@ export default function Page() {
             </button>
           </div>
         </header>
-        <div className="h-px bg-soft-border absolute top-[72px] left-0 right-0 z-20"></div>
+        <div className="h-px bg-soft-border absolute top-[72px] left-0 right-0 z-20 hidden md:block"></div>
 
         <div className="flex-1 overflow-y-auto">
           {/* Hero */}
-          <section className="px-10 pt-16 pb-16 relative overflow-hidden">
+          <section className="px-6 md:px-10 pt-8 md:pt-16 pb-12 md:pb-16 relative overflow-hidden">
             {/* Building illustration */}
-            <div className="absolute right-0 top-10 bottom-0 pointer-events-none w-[700px] flex items-end justify-end">
+            <div className="absolute right-0 top-10 bottom-0 pointer-events-none w-[700px] hidden xl:flex items-end justify-end">
               <img src="/building-structure.png" alt="Building Structure" className="w-full h-auto object-contain object-right" />
             </div>
 
             <div className="max-w-[800px] relative z-10">
-              <h1 className="font-serif text-[56px] leading-[1.1] text-primary mb-5">
+              <h1 className="font-serif text-4xl md:text-[56px] leading-[1.1] text-primary mb-5">
                 Discover and analyze<br/>world-class research
               </h1>
-              <p className="text-lg text-muted mb-10 max-w-[500px] leading-relaxed">
+              <p className="text-base md:text-lg text-muted mb-8 md:mb-10 max-w-[500px] leading-relaxed">
                 Search across millions of peer-reviewed articles, journals, books, and conference papers.
               </p>
             </div>
 
             {/* Search Bar */}
             <div className="max-w-[900px] relative z-10">
-              <div className="flex bg-paper-white rounded shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-soft-border overflow-hidden mb-6 h-14">
-                <button className="flex items-center justify-between gap-3 px-5 text-sm font-medium text-primary border-r border-soft-border hover:bg-black/5 whitespace-nowrap min-w-[140px]">
+              <div className="flex flex-col sm:flex-row bg-transparent sm:bg-paper-white rounded sm:shadow-[0_2px_8px_rgba(0,0,0,0.04)] sm:border border-soft-border overflow-hidden mb-6 sm:h-14 gap-2 sm:gap-0">
+                <button className="flex items-center justify-between gap-3 px-5 text-sm font-medium text-primary sm:border-r border-soft-border hover:bg-black/5 whitespace-nowrap sm:min-w-[140px] h-12 sm:h-full bg-paper-white border border-soft-border sm:border-none rounded sm:rounded-none">
                   All fields <ChevronDown className="w-4 h-4 text-muted" />
                 </button>
                 <input 
                   type="text" 
                   placeholder="Search for articles, journals, keywords, authors..."
-                  className="flex-1 px-5 text-[15px] outline-none bg-transparent placeholder:text-muted/70"
+                  className="flex-1 px-5 text-[15px] outline-none bg-paper-white sm:bg-transparent placeholder:text-muted/70 h-12 sm:h-full border border-soft-border sm:border-none rounded sm:rounded-none"
                 />
-                <button className="bg-accent text-white px-8 flex items-center justify-center hover:bg-accent/90 transition-colors">
+                <button className="bg-accent text-white px-8 flex items-center justify-center hover:bg-accent/90 transition-colors h-12 sm:h-full rounded sm:rounded-none">
                   <Search className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="flex items-center justify-between text-[13px]">
-                <div className="flex items-center gap-3">
-                  <span className="font-medium text-muted mr-1">Search tips:</span>
+              <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between text-[13px] gap-4 xl:gap-0">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <span className="font-medium text-muted mr-1 w-full sm:w-auto mb-1 sm:mb-0">Search tips:</span>
                   <button className="flex items-center gap-1.5 px-3.5 py-1.5 bg-paper-white rounded-full border border-soft-border hover:border-muted transition-colors text-primary">
                     <span className="font-serif font-black text-base leading-none -mt-0.5">""</span> Exact phrases
                   </button>
@@ -97,36 +97,36 @@ export default function Page() {
 
           {/* Stats Bar */}
           <section className="border-y border-soft-border bg-paper-white">
-            <div className="max-w-[1280px] px-10 py-8 grid grid-cols-5 gap-0 divide-x divide-soft-border">
-              <div className="flex items-center gap-4 px-6 first:pl-0">
+            <div className="max-w-[1280px] px-6 md:px-10 py-8 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-y-8 md:gap-y-8 xl:gap-0 xl:divide-x divide-soft-border">
+              <div className="flex items-center gap-4 px-0 xl:px-6 xl:first:pl-0">
                 <FileText className="w-8 h-8 text-primary/40 stroke-[1.5]" />
                 <div>
                   <div className="text-xl font-bold text-primary">100M+</div>
                   <div className="text-[13px] text-muted">Documents</div>
                 </div>
               </div>
-              <div className="flex items-center gap-4 px-6">
+              <div className="flex items-center gap-4 px-0 xl:px-6">
                 <Book className="w-8 h-8 text-primary/40 stroke-[1.5]" />
                 <div>
                   <div className="text-xl font-bold text-primary">28,000+</div>
                   <div className="text-[13px] text-muted">Journals</div>
                 </div>
               </div>
-              <div className="flex items-center gap-4 px-6">
+              <div className="flex items-center gap-4 px-0 xl:px-6">
                 <User className="w-8 h-8 text-primary/40 stroke-[1.5]" />
                 <div>
                   <div className="text-xl font-bold text-primary">20M+</div>
                   <div className="text-[13px] text-muted">Author profiles</div>
                 </div>
               </div>
-              <div className="flex items-center gap-4 px-6">
+              <div className="flex items-center gap-4 px-0 xl:px-6">
                 <Building2 className="w-8 h-8 text-primary/40 stroke-[1.5]" />
                 <div>
                   <div className="text-xl font-bold text-primary">90,000+</div>
                   <div className="text-[13px] text-muted">Institutions</div>
                 </div>
               </div>
-              <div className="flex items-center gap-4 px-6">
+              <div className="flex items-center gap-4 px-0 xl:px-6">
                 <Globe className="w-8 h-8 text-primary/40 stroke-[1.5]" />
                 <div>
                   <div className="text-xl font-bold text-primary">7,000+</div>
@@ -137,20 +137,20 @@ export default function Page() {
           </section>
 
           {/* Main Content Grid */}
-          <section className="max-w-[1440px] px-10 py-12">
-            <div className="grid grid-cols-12 gap-10">
+          <section className="max-w-[1440px] px-6 md:px-10 py-8 md:py-12">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
               
               {/* Left Column (8 cols) */}
-              <div className="col-span-8 space-y-16">
+              <div className="col-span-1 xl:col-span-8 space-y-12 md:space-y-16">
                 
                 {/* Explore by Subject Area */}
                 <div>
                   <div className="flex items-center justify-between mb-8">
                     <h2 className="text-[20px] font-bold text-primary">Explore by subject area</h2>
-                    <a href="#" className="text-[13px] font-medium text-accent hover:underline">View all subjects</a>
+                    <a href="#" className="text-[13px] font-medium text-accent hover:underline hidden sm:block">View all subjects</a>
                   </div>
                   
-                  <div className="grid grid-cols-4 gap-y-7 gap-x-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-y-7 gap-x-6">
                     {/* Column 1 */}
                     <div className="space-y-5">
                       <a href="#" className="flex items-center gap-3 text-[13px] font-medium text-primary hover:text-accent group">
@@ -218,12 +218,12 @@ export default function Page() {
 
                 {/* Featured Journals */}
                 <div>
-                  <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center justify-between mb-8 mt-4 sm:mt-0">
                     <h2 className="text-[20px] font-bold text-primary">Featured journals</h2>
-                    <a href="#" className="text-[13px] font-medium text-accent hover:underline">View all journals</a>
+                    <a href="#" className="text-[13px] font-medium text-accent hover:underline hidden sm:block">View all journals</a>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-6 relative">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 relative">
                     {/* Journal Card 1 */}
                     <div className="flex gap-4 items-start">
                       <div className="w-16 h-20 bg-[#004A7F] rounded shadow-sm flex-shrink-0 flex items-start justify-center pt-2 text-[6px] text-white/70 tracking-widest font-serif border-l-4 border-[#002a4a]">THE LANCET</div>
@@ -276,7 +276,7 @@ export default function Page() {
               </div>
 
               {/* Right Column (4 cols) */}
-              <div className="col-span-4">
+              <div className="col-span-1 xl:col-span-4">
                 <div className="bg-paper-white rounded-xl border border-soft-border p-6 shadow-sm">
                   <h2 className="text-[16px] font-bold text-primary mb-6">Stay informed</h2>
                   
@@ -323,9 +323,9 @@ export default function Page() {
           </section>
 
           {/* Footer */}
-          <footer className="bg-light-surface border-t border-soft-border py-12 px-10">
-            <div className="max-w-[1440px] grid grid-cols-12 gap-12">
-              <div className="col-span-5 pr-8">
+          <footer className="bg-light-surface border-t border-soft-border py-12 px-6 md:px-10">
+            <div className="max-w-[1440px] grid grid-cols-1 md:grid-cols-12 gap-12">
+              <div className="col-span-1 md:col-span-5 md:pr-8">
                 <div className="text-accent text-6xl leading-none font-serif mb-2 font-bold">"</div>
                 <p className="text-primary text-[15px] font-medium leading-relaxed mb-4 relative -top-4">
                   Scopus is an essential tool for our researchers. The depth and quality of content help us make informed decisions and drive impactful research.
@@ -335,14 +335,14 @@ export default function Page() {
                 </div>
               </div>
 
-              <div className="col-span-3">
+              <div className="col-span-1 md:col-span-3">
                 <h4 className="font-bold text-primary mb-4 text-sm">About Kairo Studio</h4>
                 <p className="text-xs text-muted leading-relaxed">
                   Empowering researchers with trusted content and advanced tools to accelerate discovery and innovation.
                 </p>
               </div>
 
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <h4 className="font-bold text-primary mb-4 text-sm">Support</h4>
                 <ul className="space-y-3 text-xs font-medium text-muted">
                   <li><a href="#" className="hover:text-primary transition-colors">Help Center</a></li>
@@ -351,7 +351,7 @@ export default function Page() {
                 </ul>
               </div>
 
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <h4 className="font-bold text-primary mb-4 text-sm">Connect with us</h4>
                 <div className="flex items-center gap-2">
                   <a href="#" className="w-8 h-8 border border-soft-border rounded bg-paper-white flex items-center justify-center text-muted hover:text-primary transition-colors shadow-sm">

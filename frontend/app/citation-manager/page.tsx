@@ -12,13 +12,13 @@ export default function CitationManagerPage() {
 
   return (
     <div className="flex min-h-screen bg-warm-white text-primary font-sans">
-      <main className="flex-1 ml-[280px] min-w-0 flex flex-col relative bg-warm-white animate-page-in">
+      <main className="flex-1 sidebar-aware-margin min-w-0 flex flex-col relative bg-warm-white animate-page-in pt-[60px] lg:pt-0">
         
         {/* Background Glow */}
-        <div className="absolute top-0 left-0 w-[1000px] h-[800px] bg-[radial-gradient(ellipse_at_30%_20%,rgba(234,88,12,0.08)_0%,transparent_60%)] pointer-events-none z-0" />
+        <div className="absolute top-0 left-0 w-[1000px] h-[800px] bg-[radial-gradient(ellipse_at_30%_20%,rgba(234,88,12,0.08)_0%,transparent_60%)] pointer-events-none z-0 hidden md:block" />
 
         {/* Topbar */}
-        <header className="h-[72px] flex items-center justify-end px-10 shrink-0 relative z-10">
+        <header className="h-[72px] hidden lg:flex items-center justify-end px-10 shrink-0 relative z-10">
           <div className="flex items-center gap-8 text-[13px] font-medium text-primary">
             <a href="#" className="hover:text-accent transition-colors font-semibold">Journals & Conferences</a>
             <button className="flex items-center gap-1.5 hover:text-accent transition-colors font-semibold">
@@ -36,14 +36,14 @@ export default function CitationManagerPage() {
           </div>
         </header>
 
-        <div className="flex-1 flex px-10 pb-10 gap-8 relative z-10">
+        <div className="flex-1 flex flex-col xl:flex-row px-4 md:px-8 xl:px-10 pb-10 gap-6 xl:gap-8 relative z-10">
           
           {/* Main Left Content */}
           <div className="flex-1 min-w-0 flex flex-col">
             
             {/* Header section */}
-            <div className="pt-4 pb-8">
-              <h1 className="font-serif text-[42px] leading-tight text-primary mb-3">
+            <div className="pt-4 pb-6 lg:pb-8">
+              <h1 className="font-serif text-[32px] md:text-[42px] leading-tight text-primary mb-2 md:mb-3">
                 Citation Manager
               </h1>
               <p className="text-[15px] text-muted mb-4">
@@ -55,28 +55,30 @@ export default function CitationManagerPage() {
             </div>
 
             {/* Search and Filters Bar */}
-            <div className="flex items-center gap-3 mb-8">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6 lg:mb-8">
               <div className="flex-1 flex items-center bg-white border border-soft-border rounded-lg px-4 h-11 shadow-sm">
                 <Search className="w-4 h-4 text-muted shrink-0 mr-3" />
                 <input 
                   type="text"
                   placeholder="Search references, authors, titles, DOI..."
-                  className="flex-1 bg-transparent border-none outline-none text-[14px] text-primary placeholder:text-muted"
+                  className="flex-1 bg-transparent border-none outline-none text-[14px] text-primary placeholder:text-muted min-w-0"
                 />
               </div>
-              <button className="flex items-center gap-2 px-4 h-11 bg-white border border-soft-border rounded-lg text-[13px] font-semibold text-primary hover:bg-black/5 shadow-sm">
-                <Filter className="w-4 h-4 text-muted" /> Filter <ChevronDown className="w-3.5 h-3.5 text-muted ml-1" />
-              </button>
-              <button className="flex items-center gap-2 px-4 h-11 bg-white border border-soft-border rounded-lg text-[13px] font-semibold text-primary hover:bg-black/5 shadow-sm">
-                <ArrowUpDown className="w-4 h-4 text-muted" /> Sort <ChevronDown className="w-3.5 h-3.5 text-muted ml-1" />
-              </button>
-              <button className="flex items-center gap-2 px-4 h-11 bg-white border border-soft-border rounded-lg text-[13px] font-semibold text-primary hover:bg-black/5 shadow-sm">
-                <Upload className="w-4 h-4 text-muted" /> Import
-              </button>
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+                <button className="flex items-center gap-2 px-3 sm:px-4 h-11 bg-white border border-soft-border rounded-lg text-[13px] font-semibold text-primary hover:bg-black/5 shadow-sm shrink-0">
+                  <Filter className="w-4 h-4 text-muted" /> Filter <ChevronDown className="w-3.5 h-3.5 text-muted ml-0 sm:ml-1" />
+                </button>
+                <button className="flex items-center gap-2 px-3 sm:px-4 h-11 bg-white border border-soft-border rounded-lg text-[13px] font-semibold text-primary hover:bg-black/5 shadow-sm shrink-0">
+                  <ArrowUpDown className="w-4 h-4 text-muted" /> Sort <ChevronDown className="w-3.5 h-3.5 text-muted ml-0 sm:ml-1" />
+                </button>
+                <button className="flex items-center gap-2 px-3 sm:px-4 h-11 bg-white border border-soft-border rounded-lg text-[13px] font-semibold text-primary hover:bg-black/5 shadow-sm shrink-0">
+                  <Upload className="w-4 h-4 text-muted" /> Import
+                </button>
+              </div>
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-8 border-b border-soft-border mb-6">
+            <div className="flex items-center gap-6 lg:gap-8 border-b border-soft-border mb-6 overflow-x-auto no-scrollbar whitespace-nowrap">
               <button className="text-[14px] font-bold text-primary pb-3 border-b-2 border-accent">
                 All References
               </button>
@@ -112,7 +114,8 @@ export default function CitationManagerPage() {
 
             {/* Table */}
             <div className="bg-white border border-soft-border rounded-xl shadow-sm overflow-visible relative flex-1">
-              <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto w-full no-scrollbar">
+                <table className="w-full min-w-[900px] text-left border-collapse">
                 <thead>
                   <tr className="border-b border-soft-border text-[12px] font-bold text-muted uppercase tracking-wider">
                     <th className="px-5 py-4 w-12 text-center font-normal"><input type="checkbox" className="rounded border-soft-border" /></th>
@@ -211,10 +214,11 @@ export default function CitationManagerPage() {
                   </tr>
                 </tbody>
               </table>
+              </div>
 
               {/* Mock Dropdown positioned exactly as in screenshot */}
               {showImportMenu && (
-                <div className="absolute right-[210px] bottom-[15px] w-48 bg-white rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-soft-border py-2 z-20">
+                <div className="absolute right-4 md:right-[210px] bottom-[15px] w-48 bg-white rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-soft-border py-2 z-20">
                   <button className="w-full text-left px-4 py-2 hover:bg-black/5 flex items-center gap-3 text-[12px] font-medium text-primary">
                     <FileText className="w-3.5 h-3.5 text-muted" /> Import BibTeX
                   </button>
@@ -235,8 +239,8 @@ export default function CitationManagerPage() {
             </div>
 
             {/* Pagination & Footer actions */}
-            <div className="flex items-center justify-between mt-6">
-              <span className="text-[13px] text-muted font-medium">Showing 1-25 of 1,284 references</span>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+              <span className="text-[13px] text-muted font-medium text-center sm:text-left">Showing 1-25 of 1,284 references</span>
               <div className="flex items-center gap-1">
                 <button className="w-8 h-8 rounded flex items-center justify-center text-muted hover:bg-black/5 border border-soft-border bg-white"><ChevronLeft className="w-4 h-4" /></button>
                 <button className="w-8 h-8 rounded flex items-center justify-center text-accent bg-orange-50 border border-accent font-bold text-[13px]">1</button>
@@ -251,7 +255,7 @@ export default function CitationManagerPage() {
           </div>
 
           {/* Right Sidebar Panel */}
-          <div className="w-[360px] shrink-0">
+          <div className="w-full xl:w-[360px] shrink-0 mt-6 xl:mt-0">
             <div className="bg-white border border-soft-border rounded-xl shadow-sm p-8 sticky top-28 h-auto flex flex-col relative">
               <button className="absolute top-6 right-6 text-muted hover:text-primary transition-colors">
                 <X className="w-5 h-5" />
@@ -337,7 +341,7 @@ export default function CitationManagerPage() {
         </div>
 
         {/* Floating Action Button */}
-        <button className="fixed bottom-10 right-10 w-14 h-14 bg-accent text-white rounded-full flex items-center justify-center shadow-[0_8px_20px_rgba(234,88,12,0.4)] hover:bg-accent/90 hover:scale-105 transition-all z-50">
+        <button className="fixed bottom-6 right-6 lg:bottom-10 lg:right-10 w-14 h-14 bg-accent text-white rounded-full flex items-center justify-center shadow-[0_8px_20px_rgba(234,88,12,0.4)] hover:bg-accent/90 hover:scale-105 transition-all z-50">
           <Plus className="w-6 h-6" />
         </button>
 

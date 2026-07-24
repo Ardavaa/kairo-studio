@@ -57,6 +57,28 @@ body.sidebar-collapsed .ml-\[280px\] {
   margin-left: 80px !important;
 }
 
+.md\:ml-\[280px\] {
+  transition: margin-left 0.3s ease-in-out;
+}
+@media (min-width: 768px) {
+  body.sidebar-collapsed .md\:ml-\[280px\] {
+    margin-left: 80px !important;
+  }
+}
+
 nextjs-portal {
   display: none !important;
+}
+
+.sidebar-aware-margin {
+  margin-left: 0;
+  transition: margin-left 0.3s ease-in-out;
+}
+@media (min-width: 1024px) {
+  .sidebar-aware-margin {
+    margin-left: 280px;
+  }
+  body.sidebar-collapsed .sidebar-aware-margin {
+    margin-left: 80px !important;
+  }
 }
