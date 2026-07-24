@@ -117,11 +117,12 @@ export default function KnowledgeGraph({ onClose }: KnowledgeGraphProps) {
               ref={fgRef}
               graphData={data}
               nodeLabel="name"
-              nodeColor={(node: any) => getNodeColor(node.node_type)}
               nodeRelSize={6}
-              linkColor={() => 'rgba(0,0,0,0.2)'}
+              linkColor={() => 'rgba(200, 200, 200, 0.4)'}
+              linkWidth={1.5}
               linkDirectionalParticles={2}
               linkDirectionalParticleSpeed={0.005}
+              linkDirectionalParticleWidth={2}
               onNodeClick={(node: any) => {
                 fgRef.current?.centerAt(node.x, node.y, 1000);
                 fgRef.current?.zoom(4, 2000);
@@ -129,27 +130,47 @@ export default function KnowledgeGraph({ onClose }: KnowledgeGraphProps) {
               nodeCanvasObject={(node: any, ctx: any, globalScale: number) => {
                 const label = node.name;
                 const fontSize = 12 / globalScale;
-                ctx.font = `${fontSize}px Sans-Serif`;
-                const textWidth = ctx.measureText(label).width;
-                const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); 
+                const nodeColor = getNodeColor(node.node_type);
+                
+                // Draw Node Circle
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, 5, 0, 2 * Math.PI, false);
+                ctx.fillStyle = nodeColor;
+                ctx.fill();
+                
+                // Draw Node Stroke
+                ctx.lineWidth = 1 / globalScale;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
 
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, bckgDimensions[0], bckgDimensions[1]);
+                // Only draw text if zoomed in or if it's a very large node
+                if (globalScale >= 1.8) {
+                  ctx.font = `${fontSize}px Inter, Sans-Serif`;
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'top';
+                  
+                  // Text Background for readability
+                  const textWidth = ctx.measureText(label).width;
+                  const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); 
+                  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                  ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y + 7 - bckgDimensions[1] * 0.1, bckgDimensions[0], bckgDimensions[1]);
 
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = getNodeColor(node.node_type);
-                ctx.fillText(label, node.x, node.y);
+                  // Text
+                  ctx.fillStyle = '#333333';
+                  ctx.fillText(label, node.x, node.y + 7);
+                }
               }}
               linkCanvasObjectMode={() => "after"}
               linkCanvasObject={(link: any, ctx: any, globalScale: number) => {
+                 // Only show link labels if highly zoomed in
+                 if (globalScale < 2.5) return;
+
                  const MAX_FONT_SIZE = 4;
                  const LABEL_NODE_MARGIN = 6;
                  
                  const start = link.source;
                  const end = link.target;
                  
-                 // Ignore unbound links
                  if (typeof start !== 'object' || typeof end !== 'object') return;
                  
                  const textPos = Object.assign({}, start);
@@ -158,17 +179,15 @@ export default function KnowledgeGraph({ onClose }: KnowledgeGraphProps) {
                  const maxTextLength = Math.sqrt(Math.pow(relLink.x, 2) + Math.pow(relLink.y, 2)) - LABEL_NODE_MARGIN * 2;
                  
                  let textAngle = Math.atan2(relLink.y, relLink.x);
-                 // maintain label vertical orientation
                  if (textAngle > Math.PI / 2) textAngle = -(Math.PI - textAngle);
                  if (textAngle < -Math.PI / 2) textAngle = -(-Math.PI - textAngle);
                  
                  const label = link.relation_type;
                  const fontSize = Math.min(MAX_FONT_SIZE, maxTextLength / ctx.measureText(label).width);
                  
-                 ctx.font = `${fontSize}px Sans-Serif`;
-                 ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                 ctx.font = `${fontSize}px Inter, Sans-Serif`;
+                 ctx.fillStyle = 'rgba(100, 100, 100, 0.8)';
                  
-                 // Center the text
                  Object.assign(textPos, {
                    x: start.x + relLink.x / 2,
                    y: start.y + relLink.y / 2
