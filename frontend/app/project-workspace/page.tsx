@@ -6,6 +6,7 @@ import {
   MessageSquare, Compass, Cloud, FileText,
   ChevronUp, HelpCircle, Bookmark
 } from "lucide-react";
+import Link from "next/link";
 
 export default function ProjectWorkspacePage() {
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -138,7 +139,7 @@ export default function ProjectWorkspacePage() {
             <div className={`grid gap-6 ${view === "grid" ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5" : "grid-cols-1"}`}>
               {projects.map((project, idx) => (
                 view === "grid" ? (
-                  <div key={idx} className="group cursor-pointer flex flex-col gap-3">
+                  <Link href={`/editor/${idx + 1}`} key={idx} className="group cursor-pointer flex flex-col gap-3">
                     {/* Document Preview (Paper) */}
                     <div className="aspect-[1/1.414] bg-white border border-gray-200/80 rounded-lg shadow-sm relative overflow-hidden group-hover:shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12)] group-hover:-translate-y-1 group-hover:border-gray-300 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] origin-bottom">
                       
@@ -165,9 +166,9 @@ export default function ProjectWorkspacePage() {
                     <div className="flex flex-col items-center text-center px-2">
                       <h3 className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2 group-hover:text-accent transition-colors">{project.title}</h3>
                     </div>
-                  </div>
+                  </Link>
                 ) : (
-                  <div key={idx} className="flex items-center justify-between p-4 bg-white border border-gray-200/80 rounded-xl hover:border-gray-300 hover:shadow-sm active:scale-[0.99] transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] group cursor-pointer">
+                  <Link href={`/editor/${idx + 1}`} key={idx} className="flex items-center justify-between p-4 bg-white border border-gray-200/80 rounded-xl hover:border-gray-300 hover:shadow-sm active:scale-[0.99] transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] group cursor-pointer">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-12 bg-gray-50 border border-gray-200 rounded flex items-center justify-center shrink-0">
                         <FileText className="w-4 h-4 text-gray-400" />
@@ -177,7 +178,7 @@ export default function ProjectWorkspacePage() {
                         <p className="text-[13px] text-gray-500">Updated {project.updated} ago</p>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 )
               ))}
             </div>
