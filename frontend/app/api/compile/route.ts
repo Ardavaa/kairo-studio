@@ -61,6 +61,11 @@ export async function POST(req: NextRequest) {
       svgs.push(content);
     }
 
+    // Save the first page as preview.svg
+    if (svgFiles.length > 0) {
+      await fs.copyFile(path.join(workspaceDir, svgFiles[0]), path.join(workspaceDir, "preview.svg")).catch(() => {});
+    }
+
     // Cleanup ONLY output SVG files, keep images and main.typ
     for (const file of svgFiles) {
       await fs.unlink(path.join(workspaceDir, file)).catch(() => {});

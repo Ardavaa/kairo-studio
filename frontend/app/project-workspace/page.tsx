@@ -9,6 +9,35 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+// Sub-component to handle thumbnail loading with fallback
+function ProjectThumbnail({ projectId }: { projectId: string }) {
+  const [error, setError] = useState(false);
+  const imageUrl = `/api/files/content?id=${projectId}&name=preview.svg`;
+
+  if (error) {
+    return (
+      <div className="absolute inset-0 bg-gray-50 flex flex-col p-4 justify-center items-center">
+        <div className="absolute inset-0 bg-grid-gray-900/[0.02] bg-[size:12px_12px]" />
+        <div className="w-full h-[3px] bg-gray-200 rounded-full mb-3" />
+        <div className="w-5/6 h-[3px] bg-gray-200 rounded-full mb-3" />
+        <div className="w-4/6 h-[3px] bg-gray-200 rounded-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 w-full h-full bg-white overflow-hidden pointer-events-none">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img 
+        src={imageUrl} 
+        alt="Document Preview" 
+        onError={() => setError(true)}
+        className="w-full h-full object-cover object-top"
+      />
+    </div>
+  );
+}
+
 export default function ProjectWorkspacePage() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [projects, setProjects] = useState<any[]>([]);
@@ -240,20 +269,7 @@ export default function ProjectWorkspacePage() {
                     {/* Document Preview (Paper) */}
                     <Link href={`/editor/${project.id}`} className="aspect-[1/1.414] bg-white border border-gray-200/80 rounded-lg shadow-sm relative overflow-hidden group-hover:shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12)] group-hover:-translate-y-1 group-hover:border-gray-300 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] origin-bottom block">
                       
-                      {/* Fake document content */}
-                      <div className="absolute inset-0 p-5 sm:p-6 flex flex-col items-center">
-                        <div className="text-[9px] sm:text-[10px] font-serif font-bold text-gray-800 leading-snug mb-3 text-center line-clamp-3">
-                          {project.title}
-                        </div>
-                        <div className="w-full h-[1px] bg-gray-100 my-1" />
-                        <div className="text-[4px] text-gray-400 space-y-1.5 w-full mt-3 opacity-60">
-                          <div className="w-full h-[3px] bg-gray-100 rounded-full" />
-                          <div className="w-full h-[3px] bg-gray-100 rounded-full" />
-                          <div className="w-5/6 h-[3px] bg-gray-100 rounded-full" />
-                          <div className="w-full h-[3px] bg-gray-100 rounded-full mt-3" />
-                          <div className="w-4/5 h-[3px] bg-gray-100 rounded-full" />
-                        </div>
-                      </div>
+                      <ProjectThumbnail projectId={project.id} />
                       
                       {/* Folded corner effect */}
                       <div className="absolute top-0 right-0 w-8 h-8 bg-gradient-to-bl from-gray-50 to-transparent border-l border-b border-gray-100 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -294,8 +310,9 @@ export default function ProjectWorkspacePage() {
                 ) : (
                   <div key={project.id} className="flex items-center justify-between p-4 bg-white border border-gray-200/80 rounded-xl hover:border-gray-300 hover:shadow-sm active:scale-[0.99] transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] group relative">
                     <Link href={`/editor/${project.id}`} className="flex items-center gap-4 flex-1">
-                      <div className="w-10 h-12 bg-gray-50 border border-gray-200 rounded flex items-center justify-center shrink-0">
-                        <FileText className="w-4 h-4 text-gray-400" />
+                      {/* Document Thumbnail/Icon */}
+                      <div className="w-16 h-20 bg-white border border-gray-200/80 rounded overflow-hidden shrink-0 relative group-hover:border-accent/40 transition-colors shadow-sm">
+                        <ProjectThumbnail projectId={project.id} />
                       </div>
                       <div className="flex-1 min-w-0 pr-4">
                         {editingId === project.id ? (
@@ -492,14 +509,19 @@ export default function ProjectWorkspacePage() {
                 {/* NeurIPS Card */}
                 <div 
                   onClick={() => setSelectedTemplate("neurips")}
-                  className={`cursor-pointer rounded-xl border-2 p-5 transition-all duration-200 ${
+                  className={`group cursor-pointer rounded-xl border-2 p-5 transition-all duration-200 ${
                     selectedTemplate === "neurips" 
                       ? "border-accent bg-accent/5 shadow-sm" 
                       : "border-gray-200 hover:border-gray-300 bg-white"
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center mb-4">
-                    <LayoutTemplate className="w-6 h-6 text-blue-600" />
+                  <div className="w-full h-32 rounded-lg bg-gray-50 flex items-start justify-center overflow-hidden mb-4 border border-gray-100/50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                      src="/templates/neurips.svg" 
+                      alt="NeurIPS Template Preview" 
+                      className="w-full h-full object-cover object-top opacity-95 group-hover:opacity-100 transition-opacity" 
+                    />
                   </div>
                   <h3 className="font-bold text-gray-900 text-base mb-1">NeurIPS Template</h3>
                   <p className="text-sm text-gray-500 leading-relaxed">
@@ -510,14 +532,19 @@ export default function ProjectWorkspacePage() {
                 {/* IEEE Card */}
                 <div 
                   onClick={() => setSelectedTemplate("ieee")}
-                  className={`cursor-pointer rounded-xl border-2 p-5 transition-all duration-200 ${
+                  className={`group cursor-pointer rounded-xl border-2 p-5 transition-all duration-200 ${
                     selectedTemplate === "ieee" 
                       ? "border-accent bg-accent/5 shadow-sm" 
                       : "border-gray-200 hover:border-gray-300 bg-white"
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center mb-4">
-                    <FileText className="w-6 h-6 text-indigo-600" />
+                  <div className="w-full h-32 rounded-lg bg-gray-50 flex items-start justify-center overflow-hidden mb-4 border border-gray-100/50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                      src="/templates/ieee.svg" 
+                      alt="IEEE Template Preview" 
+                      className="w-full h-full object-cover object-top opacity-95 group-hover:opacity-100 transition-opacity" 
+                    />
                   </div>
                   <h3 className="font-bold text-gray-900 text-base mb-1">IEEE Template</h3>
                   <p className="text-sm text-gray-500 leading-relaxed">

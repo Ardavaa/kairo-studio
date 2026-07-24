@@ -69,6 +69,32 @@ export async function POST(req: NextRequest) {
       await fs.writeFile(path.join(workspaceDir, "main.typ"), fileContent, "utf-8");
     }
 
+    // Generate preview
+    try {
+      const { exec } = require("child_process");
+      await new Promise((resolve, reject) => {
+        exec(`typst compile main.typ preview-{n}.svg`, { cwd: workspaceDir }, (error: any, stdout: any, stderr: any) => {
+          if (error) {
+            reject(stderr || error.message);
+          } else {
+            resolve(stdout);
+          }
+        });
+      });
+      // Delete extra pages, keep preview-1.svg and rename to preview.svg
+      const files = await fs.readdir(workspaceDir);
+      const previewFiles = files.filter(f => f.startsWith("preview-") && f.endsWith(".svg"));
+      if (previewFiles.length > 0) {
+        previewFiles.sort(); // preview-1.svg, preview-2.svg
+        await fs.rename(path.join(workspaceDir, previewFiles[0]), path.join(workspaceDir, "preview.svg"));
+        for (let i = 1; i < previewFiles.length; i++) {
+          await fs.unlink(path.join(workspaceDir, previewFiles[i]));
+        }
+      }
+    } catch (e) {
+      console.log("Failed to generate initial preview", e);
+    }
+
     return NextResponse.json(newProject);
   } catch (err: any) {
     return NextResponse.json({ error: err.toString() }, { status: 500 });
