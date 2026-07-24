@@ -672,6 +672,8 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
   };
 
   const isVisible = (fileName: string) => {
+    if (fileName.match(/preview(-\d+)?\.svg$/)) return false;
+    
     const parts = fileName.split('/');
     let currentPath = "";
     for (let i = 0; i < parts.length - 1; i++) {
@@ -1314,18 +1316,22 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
               <div className="min-h-full min-w-max p-12 flex flex-col items-center">
 
 
-                {memoizedSvgPages.map((svgContent, idx) => (
-                  <div 
-                    key={idx}
-                    className="bg-white shadow-md border border-gray-200/50 mb-8 origin-top [&>svg]:!max-w-none transition-all duration-200 ease-out" 
-                    style={{ 
-                      transform: `scale(${zoom / 100})`, 
-                      marginBottom: `${Math.max(32, (zoom/100 - 1) * 1123 + 32)}px`
-                    }}
-                  >
-                    {svgContent}
-                  </div>
-                ))}
+                <div 
+                  className="flex flex-col items-center gap-8 origin-top transition-transform duration-200 ease-out"
+                  style={{ 
+                    transform: `scale(${zoom / 100})`,
+                    marginBottom: `${(zoom / 100 - 1) * (pages.length * 1123 + Math.max(0, pages.length - 1) * 32)}px`
+                  }}
+                >
+                  {memoizedSvgPages.map((svgContent, idx) => (
+                    <div 
+                      key={idx}
+                      className="bg-white shadow-md border border-gray-200/50 [&>svg]:!max-w-none" 
+                    >
+                      {svgContent}
+                    </div>
+                  ))}
+                </div>
 
                 {pages.length === 0 && !error && (
                   <div className="mt-20 text-gray-400 font-medium flex flex-col items-center gap-4">
