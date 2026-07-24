@@ -26,6 +26,11 @@ export default function ProjectWorkspacePage() {
   const [projectToDelete, setProjectToDelete] = useState<{ id: string, title: string } | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<"neurips" | "ieee">("neurips");
+  const [templateProjectTitle, setTemplateProjectTitle] = useState("");
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
 
   useEffect(() => {
     fetch("/api/projects")
@@ -172,7 +177,10 @@ export default function ProjectWorkspacePage() {
               </button>
               
               <div className="flex-1 flex bg-white border border-gray-200/80 rounded-xl hover:border-gray-300 hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] group">
-                <button className="flex-1 flex items-center p-4 lg:p-5 text-left active:scale-[0.98] transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] origin-left rounded-l-xl">
+                <button 
+                  onClick={() => setIsTemplateModalOpen(true)}
+                  className="flex-1 flex items-center p-4 lg:p-5 text-left active:scale-[0.98] transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] origin-left rounded-l-xl"
+                >
                   <div className="w-12 h-12 flex items-center justify-center mr-5 shrink-0">
                     <LayoutTemplate className="w-6 h-6 text-gray-400 group-hover:text-gray-900 transition-colors" />
                   </div>
@@ -181,7 +189,10 @@ export default function ProjectWorkspacePage() {
                     <p className="text-gray-500 text-[13px]">Configure a template to get going</p>
                   </div>
                 </button>
-                <div className="w-12 border-l border-gray-100 flex items-center justify-center hover:bg-gray-50 cursor-pointer rounded-r-xl transition-colors shrink-0">
+                <div 
+                  onClick={() => setIsTemplateModalOpen(true)}
+                  className="w-12 border-l border-gray-100 flex items-center justify-center hover:bg-gray-50 cursor-pointer rounded-r-xl transition-colors shrink-0"
+                >
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 </div>
               </div>
@@ -436,6 +447,123 @@ export default function ProjectWorkspacePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Template Selection Modal */}
+      {isTemplateModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity duration-300"
+            onClick={() => !isCreatingTemplate && setIsTemplateModalOpen(false)} 
+          />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-[640px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-gray-200">
+            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Start from Template</h2>
+                <p className="text-sm text-gray-500 mt-1">Choose a conference template for your new document.</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => !isCreatingTemplate && setIsTemplateModalOpen(false)} 
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Project Name</label>
+                <input 
+                  type="text"
+                  autoFocus
+                  value={templateProjectTitle}
+                  onChange={e => setTemplateProjectTitle(e.target.value)}
+                  placeholder="e.g. My Paper"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[15px] outline-none focus:bg-white focus:border-accent/40 focus:ring-4 focus:ring-accent/10 transition-all duration-200"
+                  disabled={isCreatingTemplate}
+                />
+              </div>
+
+              <label className="block text-sm font-semibold text-gray-900 mb-3">Select Template</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* NeurIPS Card */}
+                <div 
+                  onClick={() => setSelectedTemplate("neurips")}
+                  className={`cursor-pointer rounded-xl border-2 p-5 transition-all duration-200 ${
+                    selectedTemplate === "neurips" 
+                      ? "border-accent bg-accent/5 shadow-sm" 
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center mb-4">
+                    <LayoutTemplate className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-base mb-1">NeurIPS Template</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    Official format for Neural Information Processing Systems conference.
+                  </p>
+                </div>
+
+                {/* IEEE Card */}
+                <div 
+                  onClick={() => setSelectedTemplate("ieee")}
+                  className={`cursor-pointer rounded-xl border-2 p-5 transition-all duration-200 ${
+                    selectedTemplate === "ieee" 
+                      ? "border-accent bg-accent/5 shadow-sm" 
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center mb-4">
+                    <FileText className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-base mb-1">IEEE Template</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    Standard two-column format for IEEE journals and conferences.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
+                <button 
+                  type="button"
+                  onClick={() => setIsTemplateModalOpen(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+                  disabled={isCreatingTemplate}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button"
+                  onClick={async () => {
+                    if (!templateProjectTitle.trim()) return;
+                    setIsCreatingTemplate(true);
+                    const res = await fetch("/api/projects", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ title: templateProjectTitle, template: selectedTemplate })
+                    });
+                    if (res.ok) {
+                      const newProject = await res.json();
+                      router.push(`/editor/${newProject.id}`);
+                    } else {
+                      setIsCreatingTemplate(false);
+                    }
+                  }}
+                  disabled={!templateProjectTitle.trim() || isCreatingTemplate}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-accent text-white hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  {isCreatingTemplate ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Creating...
+                    </>
+                  ) : "Create Project"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

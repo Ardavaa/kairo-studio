@@ -61,9 +61,13 @@ export async function POST(req: NextRequest) {
 
     const workspaceDir = path.join(process.cwd(), ".workspace", newId);
     await fs.mkdir(workspaceDir, { recursive: true });
-    
-    const fileContent = template === "empty" ? "" : INITIAL_CODE;
-    await fs.writeFile(path.join(workspaceDir, "main.typ"), fileContent, "utf-8");
+    if (template === "ieee" || template === "neurips") {
+      const templatePath = path.join(process.cwd(), "..", "paper-templates", template);
+      await fs.cp(templatePath, workspaceDir, { recursive: true });
+    } else {
+      const fileContent = template === "empty" ? "" : INITIAL_CODE;
+      await fs.writeFile(path.join(workspaceDir, "main.typ"), fileContent, "utf-8");
+    }
 
     return NextResponse.json(newProject);
   } catch (err: any) {
