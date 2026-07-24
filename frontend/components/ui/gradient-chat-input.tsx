@@ -521,7 +521,7 @@ export default function GradientChatInput({
                 {hasText ? (
                   <Button
                     type="button"
-                    onClick={handleSend}
+                    onClick={() => handleSend()}
                     onMouseDown={(e) => e.preventDefault()}
                     size="icon"
                     aria-label="Send message"

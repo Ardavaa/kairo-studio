@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, use } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import {
   ChevronLeft, File, Edit, View, HelpCircle, Cloud, Share, Download,
@@ -93,9 +93,10 @@ function handleEditorWillMount(monaco: any) {
   }
 }
 
-export default function EditorPage({ params }: { params: { id: string } }) {
+export default function EditorPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const [zoom, setZoom] = useState(135);
-  const [code, setCode] = useState(INITIAL_CODE);
+  const [code, setCode] = useState("");
   const [pages, setPages] = useState<string[]>([]);
   const [isCompiling, setIsCompiling] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -131,7 +132,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
   const outlines = useMemo(() => {
     if (!activeFile.endsWith('.typ') && !activeFile.endsWith('.md')) return [];
     const lines = code.split('\n');
-    const results = [];
+    const results: { line: number, depth: number, text: string, hasChildren?: boolean }[] = [];
     for (let i = 0; i < lines.length; i++) {
       const match = lines[i].match(/^(=+)\s+(.*)$/);
       if (match) {
@@ -193,7 +194,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
     const delayDebounceFn = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const res = await fetch(`/api/search?id=default&q=${encodeURIComponent(searchQuery)}&casesensitive=${searchCaseSensitive}`);
+        const res = await fetch(`/api/search?id=${id}&q=${encodeURIComponent(searchQuery)}&casesensitive=${searchCaseSensitive}`);
         const data = await res.json();
         setSearchResults(data.results || []);
       } catch (err) {
@@ -224,7 +225,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
 
   const handleReplace = async (file: string, match: any) => {
     try {
-      const res = await fetch(`/api/replace?id=default`, {
+      const res = await fetch(`/api/replace?id=${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -238,12 +239,14 @@ export default function EditorPage({ params }: { params: { id: string } }) {
       });
       if (res.ok) {
         if (file === activeFile) {
-          fetch(`/api/files/content?id=default&name=${encodeURIComponent(file)}`)
+          fetch(`/api/files/content?id=${id}&name=${encodeURIComponent(file)}`)
             .then(r => r.text())
             .then(text => {
-              setCode(text);
-              if (editorRef.current) {
-                editorRef.current.setValue(text);
+              if (typeof text === 'string') {
+                setCode(text);
+                if (editorRef.current) {
+                  editorRef.current.setValue(text);
+                }
               }
             });
         }
@@ -262,7 +265,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
       const filesToReplace = file ? [searchResults.find(r => r.file === file)!] : searchResults;
       
       for (const result of filesToReplace) {
-        promises.push(fetch(`/api/replace?id=default`, {
+        promises.push(fetch(`/api/replace?id=${id}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -279,12 +282,14 @@ export default function EditorPage({ params }: { params: { id: string } }) {
       // Refresh active file if it was part of the replace
       const wasActiveFileReplaced = filesToReplace.some(r => r && r.file === activeFile);
       if (wasActiveFileReplaced) {
-        fetch(`/api/files/content?id=default&name=${encodeURIComponent(activeFile)}`)
+        fetch(`/api/files/content?id=${id}&name=${encodeURIComponent(activeFile)}`)
           .then(r => r.text())
           .then(text => {
-            setCode(text);
-            if (editorRef.current) {
-              editorRef.current.setValue(text);
+            if (typeof text === 'string') {
+              setCode(text);
+              if (editorRef.current) {
+                editorRef.current.setValue(text);
+              }
             }
           });
       }
@@ -304,12 +309,24 @@ export default function EditorPage({ params }: { params: { id: string } }) {
     return () => window.removeEventListener("click", handleClick);
   }, []);
 
-  // Fetch files on mount
+  // Fetch files and initial content on mount
   useEffect(() => {
-    fetch("/api/files?id=default")
+    fetch(`/api/files?id=${id}`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setProjectFiles(data);
+      })
+      .catch(console.error);
+
+    fetch(`/api/files/content?id=${id}&name=${encodeURIComponent(activeFile)}`)
+      .then(res => {
+        if (res.ok) return res.text();
+        throw new Error('Failed to load file');
+      })
+      .then(text => {
+        if (typeof text === 'string') {
+          setCode(text);
+        }
       })
       .catch(console.error);
   }, []);
@@ -349,7 +366,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
     if (!window.confirm(`Are you sure you want to delete ${fileName}?`)) return;
 
     try {
-      const res = await fetch(`/api/files?id=default&name=${encodeURIComponent(fileName)}`, {
+      const res = await fetch(`/api/files?id=${id}&name=${encodeURIComponent(fileName)}`, {
         method: "DELETE"
       });
       if (res.ok) {
@@ -373,7 +390,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
     const newName = dir ? `${dir}/${renameInput}` : renameInput;
 
     try {
-      const res = await fetch("/api/files?id=default", {
+      const res = await fetch(`/api/files?id=${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ oldName, newName })
@@ -407,13 +424,15 @@ export default function EditorPage({ params }: { params: { id: string } }) {
     if (renamingFile === fileName) return;
     setActiveFile(fileName);
     try {
-      const res = await fetch(`/api/files/content?id=default&name=${encodeURIComponent(fileName)}`);
+      const res = await fetch(`/api/files/content?id=${id}&name=${encodeURIComponent(fileName)}`);
       if (res.ok) {
         if (fileName.endsWith('.typ') || fileName.endsWith('.bib') || fileName.endsWith('.txt')) {
           const text = await res.text();
-          setCode(text);
-          if (editorRef.current) {
-            editorRef.current.setValue(text);
+          if (typeof text === 'string') {
+            setCode(text);
+            if (editorRef.current) {
+              editorRef.current.setValue(text);
+            }
           }
         }
       }
@@ -429,7 +448,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
     }
     try {
       const isFolder = creatingItem === 'folder';
-      const res = await fetch("/api/files?id=default", {
+      const res = await fetch(`/api/files?id=${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: createInput, isFolder })
@@ -469,7 +488,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
     if (draggedFileName === newName) return;
 
     try {
-      const res = await fetch("/api/files?id=default", {
+      const res = await fetch(`/api/files?id=${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ oldName: draggedFileName, newName })
@@ -492,7 +511,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
 
     const newName = draggedFileName.split('/').pop()!;
     try {
-      const res = await fetch("/api/files?id=default", {
+      const res = await fetch(`/api/files?id=${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ oldName: draggedFileName, newName })
@@ -521,7 +540,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
       });
       
       try {
-        const res = await fetch("/api/upload?id=default", {
+        const res = await fetch(`/api/upload?id=${id}`, {
           method: "POST",
           body: formData
         });
@@ -559,7 +578,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
   const handleExportPDF = async () => {
     setIsExporting(true);
     try {
-      const res = await fetch("/api/export", {
+      const res = await fetch(`/api/export?id=${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code })
@@ -585,7 +604,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
       setIsCompiling(true);
       setError(null);
       try {
-        const res = await fetch("/api/compile", {
+        const res = await fetch(`/api/compile?id=${id}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ code, targetFile: activeFile })
@@ -1090,7 +1109,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
           </div>
         )}
 
-        <PanelGroup direction="horizontal" className="flex-1">
+        <PanelGroup orientation="horizontal" className="flex-1">
           
           {/* Editor Panel */}
           <Panel defaultSize={50} minSize={20} className="flex flex-col bg-[#FDFDFD]">
@@ -1125,7 +1144,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
                 <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-gray-50 border-t border-gray-200">
                   <div className="max-w-[80%] max-h-[80%] bg-white p-4 shadow-sm border border-gray-200 rounded-lg flex items-center justify-center">
                     <img 
-                      src={`/api/files/content?id=default&name=${encodeURIComponent(activeFile)}&t=${Date.now()}`} 
+                      src={`/api/files/content?id=${id}&name=${encodeURIComponent(activeFile)}&t=${Date.now()}`} 
                       alt={activeFile} 
                       className="max-w-full max-h-full object-contain"
                     />
@@ -1138,7 +1157,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
                   path={activeFile}
                   language={activeFile.endsWith('.bib') ? "bibtex" : "typst"}
                   theme="kairo-light"
-                  defaultValue={INITIAL_CODE}
+                  value={code}
                   onChange={(val) => setCode(val || "")}
                   beforeMount={handleEditorWillMount}
                   onMount={(editor) => { editorRef.current = editor; }}

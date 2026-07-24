@@ -35,7 +35,7 @@ export default function KnowledgeGraph({ onClose }: KnowledgeGraphProps) {
   const [loading, setLoading] = useState(true);
   
   // We can't type fgRef perfectly since we dynamic-imported it, so we use any
-  const fgRef = useRef<any>();
+  const fgRef = useRef<any>(null);
 
   useEffect(() => {
     const fetchGraph = async () => {

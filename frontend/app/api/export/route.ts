@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Code is required" }, { status: 400 });
     }
 
-    const id = "default";
+    const id = req.nextUrl.searchParams.get("id") || "default";
     const workspaceDir = path.join(process.cwd(), ".workspace", id);
     
     // Create workspace directory if it doesn't exist
