@@ -18,11 +18,6 @@ function cn(...inputs: ClassValue[]) {
 export default function Sidebar() {
   const pathname = usePathname();
   const [showEnhanceCard, setShowEnhanceCard] = useState(true);
-
-  if (pathname.startsWith("/editor")) {
-    return null;
-  }
-
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -88,6 +83,10 @@ export default function Sidebar() {
         : "text-muted hover:text-primary hover:bg-black/5"
     );
   };
+
+  if (pathname.startsWith("/editor")) {
+    return null;
+  }
 
   return (
     <>

@@ -6,23 +6,37 @@ import os from "os";
 
 export async function POST(req: NextRequest) {
   try {
-    const { code } = await req.json();
+    const body = await req.json();
+    const { code, targetFile = "main.typ" } = body;
 
-    if (!code) {
+    if (!code && code !== "") {
       return NextResponse.json({ error: "Code is required" }, { status: 400 });
     }
 
-    // Create a temporary workspace directory
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "kairo-typst-export-"));
-    const typstFilePath = path.join(tempDir, "main.typ");
-    const pdfOutputPattern = path.join(tempDir, "output.pdf");
+    const id = "default";
+    const workspaceDir = path.join(process.cwd(), ".workspace", id);
+    
+    // Create workspace directory if it doesn't exist
+    await fs.mkdir(workspaceDir, { recursive: true });
+    
+    const typstFilePath = path.join(workspaceDir, "main.typ");
+    const pdfOutputPattern = path.join(workspaceDir, "output.pdf");
 
-    // Write the code to the typst file
-    await fs.writeFile(typstFilePath, code, "utf-8");
+    // Write the code to the target file
+    const targetFilePath = path.join(workspaceDir, targetFile);
+    await fs.writeFile(targetFilePath, code, "utf-8");
+
+    // Always compile main.typ
+    const mainFilePath = path.join(workspaceDir, "main.typ");
+    try {
+      await fs.access(mainFilePath);
+    } catch {
+      await fs.writeFile(mainFilePath, "", "utf-8");
+    }
 
     // Compile the typst file to PDF
     await new Promise((resolve, reject) => {
-      exec(`typst compile "${typstFilePath}" "${pdfOutputPattern}"`, (error, stdout, stderr) => {
+      exec(`typst compile main.typ output.pdf`, { cwd: workspaceDir }, (error, stdout, stderr) => {
         if (error) {
           reject(stderr || error.message);
         } else {
@@ -34,8 +48,8 @@ export async function POST(req: NextRequest) {
     // Read generated PDF
     const pdfBuffer = await fs.readFile(pdfOutputPattern);
 
-    // Cleanup temp directory in background
-    fs.rm(tempDir, { recursive: true, force: true }).catch(console.error);
+    // Cleanup ONLY output PDF file
+    await fs.unlink(pdfOutputPattern).catch(() => {});
 
     // Return the PDF file
     return new NextResponse(pdfBuffer, {

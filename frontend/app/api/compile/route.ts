@@ -6,23 +6,36 @@ import os from "os";
 
 export async function POST(req: NextRequest) {
   try {
-    const { code } = await req.json();
+    const body = await req.json();
+    const { code, targetFile = "main.typ" } = body;
 
-    if (!code) {
+    if (!code && code !== "") {
       return NextResponse.json({ error: "Code is required" }, { status: 400 });
     }
 
-    // Create a temporary workspace directory
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "kairo-typst-"));
-    const typstFilePath = path.join(tempDir, "main.typ");
-    const svgOutputPattern = path.join(tempDir, "output-{n}.svg");
+    const id = "default"; // We could pass id from frontend, but we'll use "default" for now if not provided
+    const workspaceDir = path.join(process.cwd(), ".workspace", id);
+    
+    // Create workspace directory if it doesn't exist
+    await fs.mkdir(workspaceDir, { recursive: true });
+    
+    // Write the code to the target file
+    const targetFilePath = path.join(workspaceDir, targetFile);
+    await fs.writeFile(targetFilePath, code, "utf-8");
 
-    // Write the code to the typst file
-    await fs.writeFile(typstFilePath, code, "utf-8");
+    // Always compile main.typ
+    const mainFilePath = path.join(workspaceDir, "main.typ");
+    
+    // Check if main.typ exists, if not create it empty
+    try {
+      await fs.access(mainFilePath);
+    } catch {
+      await fs.writeFile(mainFilePath, "", "utf-8");
+    }
 
-    // Compile the typst file to SVG
+    // Run typst compile
     await new Promise((resolve, reject) => {
-      exec(`typst compile "${typstFilePath}" "${svgOutputPattern}"`, (error, stdout, stderr) => {
+      exec(`typst compile main.typ output-{n}.svg`, { cwd: workspaceDir }, (error, stdout, stderr) => {
         if (error) {
           reject(stderr || error.message);
         } else {
@@ -32,7 +45,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Read generated SVGs
-    const files = await fs.readdir(tempDir);
+    const files = await fs.readdir(workspaceDir);
     const svgFiles = files
       .filter((file) => file.startsWith("output-") && file.endsWith(".svg"))
       // Sort numerically
@@ -44,12 +57,14 @@ export async function POST(req: NextRequest) {
 
     const svgs = [];
     for (const file of svgFiles) {
-      const content = await fs.readFile(path.join(tempDir, file), "utf-8");
+      const content = await fs.readFile(path.join(workspaceDir, file), "utf-8");
       svgs.push(content);
     }
 
-    // Cleanup temp directory in background
-    fs.rm(tempDir, { recursive: true, force: true }).catch(console.error);
+    // Cleanup ONLY output SVG files, keep images and main.typ
+    for (const file of svgFiles) {
+      await fs.unlink(path.join(workspaceDir, file)).catch(() => {});
+    }
 
     return NextResponse.json({ pages: svgs });
   } catch (error: any) {

@@ -5,7 +5,9 @@ import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "reac
 import {
   ChevronLeft, File, Edit, View, HelpCircle, Cloud, Share, Download,
   Bold, Italic, Underline, Heading, List, ListOrdered, Sigma, Code, AtSign, MessageSquare,
-  Undo, Redo, ZoomIn, ZoomOut, Maximize, GripVertical, Search, Book, PenTool, Settings, HelpCircle as HelpIcon, FileText
+  Undo, Redo, ZoomIn, ZoomOut, Maximize, GripVertical, Search, Book, PenTool, Settings, HelpCircle as HelpIcon, FileText,
+  FolderPlus, FilePlus, Upload, Image as ImageIcon, Eye, MoreHorizontal, Trash2, Edit2, Folder,
+  ChevronRight, ChevronDown
 } from "lucide-react";
 import Link from "next/link";
 import Editor from "@monaco-editor/react";
@@ -46,6 +48,26 @@ function handleEditorWillMount(monaco: any) {
       }
     });
 
+    monaco.languages.register({ id: "bibtex" });
+    monaco.languages.setMonarchTokensProvider("bibtex", {
+      tokenizer: {
+        root: [
+          [/@[a-zA-Z]+/, "keyword"],
+          [/[a-zA-Z0-9_:\-]+(?=\s*,)/, "function"],
+          [/[a-zA-Z0-9_:\-]+(?=\s*=)/, "type.identifier"],
+          [/"/, "string", "@string_double"],
+          [/[{}]/, "delimiter"],
+          [/%.*$/, "comment"],
+          [/[0-9]+/, "number"],
+        ],
+        string_double: [
+          [/[^\\"]+/, "string"],
+          [/\\./, "string.escape"],
+          [/"/, "string", "@pop"]
+        ]
+      }
+    });
+
     monaco.editor.defineTheme("kairo-light", {
       base: "vs",
       inherit: true,
@@ -56,9 +78,12 @@ function handleEditorWillMount(monaco: any) {
         { token: "comment", foreground: "9ca3af", fontStyle: "italic" },
         { token: "keyword.heading", foreground: "111827", fontStyle: "bold" },
         { token: "string.math", foreground: "7c3aed" },
+        { token: "type.identifier", foreground: "059669" },
+        { token: "delimiter", foreground: "6b7280" },
+        { token: "number", foreground: "d97706" },
       ],
       colors: {
-        "editor.background": "#FAFAFA",
+        "editor.background": "#FDFDFD",
         "editor.lineHighlightBackground": "#F3F4F6",
         "editorLineNumber.foreground": "#D1D5DB",
         "editorLineNumber.activeForeground": "#9CA3AF",
@@ -76,6 +101,256 @@ export default function EditorPage({ params }: { params: { id: string } }) {
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editorRef = useRef<any>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+
+  const [activeTab, setActiveTab] = useState<"files" | "search" | "outline" | null>("files");
+  const [activeFile, setActiveFile] = useState<string>("main.typ");
+  const [creatingItem, setCreatingItem] = useState<'file' | 'folder' | null>(null);
+  const [createInput, setCreateInput] = useState("");
+  
+  const [projectFiles, setProjectFiles] = useState<{ name: string, type: 'typst' | 'image' | 'bib' | 'other' | 'folder' }[]>([]);
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [renamingFile, setRenamingFile] = useState<string | null>(null);
+  const [renameInput, setRenameInput] = useState("");
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, fileName: string } | null>(null);
+  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null);
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, []);
+
+  // Fetch files on mount
+  useEffect(() => {
+    fetch("/api/files?id=default")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setProjectFiles(data);
+      })
+      .catch(console.error);
+  }, []);
+
+  // Handle Ctrl+Scroll zoom for the preview panel
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault(); // Prevent browser zoom
+        const delta = e.deltaY < 0 ? 10 : -10;
+        setZoom(z => Math.min(300, Math.max(50, z + delta)));
+      }
+    };
+
+    const container = previewContainerRef.current;
+    if (container) {
+      container.addEventListener("wheel", handleWheel, { passive: false });
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener("wheel", handleWheel);
+      }
+    };
+  }, []);
+
+  const handleDeleteFile = async (fileName: string) => {
+    if (fileName === "main.typ") return;
+    if (!window.confirm(`Are you sure you want to delete ${fileName}?`)) return;
+
+    try {
+      const res = await fetch(`/api/files?id=default&name=${encodeURIComponent(fileName)}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        setProjectFiles(prev => prev.filter(f => f.name !== fileName));
+      } else {
+        alert("Failed to delete file");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Delete error");
+    }
+  };
+
+  const handleRenameSubmit = async (oldName: string) => {
+    const oldBasename = oldName.split('/').pop() || oldName;
+    if (!renameInput || renameInput === oldBasename) {
+      setRenamingFile(null);
+      return;
+    }
+    const dir = oldName.substring(0, oldName.lastIndexOf('/'));
+    const newName = dir ? `${dir}/${renameInput}` : renameInput;
+
+    try {
+      const res = await fetch("/api/files?id=default", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldName, newName })
+      });
+      if (res.ok) {
+        setProjectFiles(prev => prev.map(f => {
+          if (f.name === oldName) {
+            let type: 'typst' | 'image' | 'bib' | 'other' | 'folder' = f.type;
+            if (type !== 'folder') {
+              type = 'other';
+              if (renameInput.endsWith('.typ')) type = 'typst';
+              else if (renameInput.endsWith('.bib')) type = 'bib';
+              else if (renameInput.match(/\.(png|jpe?g|gif|svg|webp)$/i)) type = 'image';
+            }
+            return { ...f, name: newName, type };
+          }
+          return f;
+        }));
+        if (activeFile === oldName) setActiveFile(newName);
+      } else {
+        alert("Failed to rename file");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Rename error");
+    }
+    setRenamingFile(null);
+  };
+
+  const handleFileClick = async (fileName: string) => {
+    if (renamingFile === fileName) return;
+    setActiveFile(fileName);
+    try {
+      const res = await fetch(`/api/files/content?id=default&name=${encodeURIComponent(fileName)}`);
+      if (res.ok) {
+        if (fileName.endsWith('.typ') || fileName.endsWith('.bib') || fileName.endsWith('.txt')) {
+          const text = await res.text();
+          setCode(text);
+          if (editorRef.current) {
+            editorRef.current.setValue(text);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCreateSubmit = async () => {
+    if (!createInput) {
+      setCreatingItem(null);
+      return;
+    }
+    try {
+      const isFolder = creatingItem === 'folder';
+      const res = await fetch("/api/files?id=default", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: createInput, isFolder })
+      });
+      if (res.ok) {
+        let type: 'typst' | 'image' | 'bib' | 'other' | 'folder' = 'other';
+        if (isFolder) type = 'folder';
+        else if (createInput.endsWith('.typ')) type = 'typst';
+        else if (createInput.endsWith('.bib')) type = 'bib';
+        else if (createInput.match(/\.(png|jpe?g|gif|svg|webp)$/i)) type = 'image';
+        
+        setProjectFiles(prev => [...prev, { name: createInput, type }]);
+      } else {
+        alert("Failed to create " + creatingItem);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Create error");
+    }
+    setCreatingItem(null);
+    setCreateInput("");
+  };
+
+  const handleDrop = async (e: React.DragEvent, folderName: string) => {
+    e.preventDefault();
+    setDragOverFolder(null);
+    const draggedFileName = e.dataTransfer.getData("fileName");
+    if (!draggedFileName || draggedFileName === folderName) return;
+    
+    const targetIsFolder = projectFiles.find(f => f.name === folderName)?.type === 'folder';
+    if (!targetIsFolder) return; // Allow bubbling to handleRootDrop
+
+    e.stopPropagation(); // Only stop if we are handling a folder drop
+
+    const basename = draggedFileName.split('/').pop();
+    const newName = `${folderName}/${basename}`;
+    if (draggedFileName === newName) return;
+
+    try {
+      const res = await fetch("/api/files?id=default", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldName: draggedFileName, newName })
+      });
+      if (res.ok) {
+        setProjectFiles(prev => prev.map(f => f.name === draggedFileName ? { ...f, name: newName } : f));
+        if (activeFile === draggedFileName) setActiveFile(newName);
+      }
+    } catch (err) {
+      console.error("Move error:", err);
+    }
+  };
+
+  const handleRootDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverFolder(null);
+    const draggedFileName = e.dataTransfer.getData("fileName");
+    if (!draggedFileName) return;
+    if (!draggedFileName.includes('/')) return; // already in root
+
+    const newName = draggedFileName.split('/').pop()!;
+    try {
+      const res = await fetch("/api/files?id=default", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldName: draggedFileName, newName })
+      });
+      if (res.ok) {
+        setProjectFiles(prev => prev.map(f => f.name === draggedFileName ? { ...f, name: newName } : f));
+        if (activeFile === draggedFileName) setActiveFile(newName);
+      }
+    } catch (err) {
+      console.error("Move to root error:", err);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const formData = new FormData();
+      
+      const newFiles = Array.from(files).map(file => {
+        formData.append("files", file);
+        let type: 'typst' | 'image' | 'bib' | 'other' = 'other';
+        if (file.name.endsWith('.typ')) type = 'typst';
+        else if (file.name.endsWith('.bib')) type = 'bib';
+        else if (file.type.startsWith('image/')) type = 'image';
+        return { name: file.name, type };
+      });
+      
+      try {
+        const res = await fetch("/api/upload?id=default", {
+          method: "POST",
+          body: formData
+        });
+        
+        if (res.ok) {
+          setProjectFiles([...projectFiles, ...newFiles]);
+          // Force a re-compile so typst can see the new files
+          setCode(prev => prev + " ");
+          setTimeout(() => setCode(prev => prev.slice(0, -1)), 50);
+        } else {
+          alert("Failed to upload files");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Upload error");
+      }
+    }
+  };
 
   const formatText = (prefix: string, suffix: string = "") => {
     if (!editorRef.current) return;
@@ -124,7 +399,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
         const res = await fetch("/api/compile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code })
+          body: JSON.stringify({ code, targetFile: activeFile })
         });
         const data = await res.json();
         if (!res.ok) {
@@ -145,6 +420,27 @@ export default function EditorPage({ params }: { params: { id: string } }) {
 
     return () => clearTimeout(timer);
   }, [code]);
+
+  const toggleFolder = (folderName: string) => {
+    setCollapsedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(folderName)) next.delete(folderName);
+      else next.add(folderName);
+      return next;
+    });
+  };
+
+  const isVisible = (fileName: string) => {
+    const parts = fileName.split('/');
+    let currentPath = "";
+    for (let i = 0; i < parts.length - 1; i++) {
+      currentPath += (i === 0 ? "" : "/") + parts[i];
+      if (collapsedFolders.has(currentPath)) return false;
+    }
+    return true;
+  };
+
+  const sortedFiles = [...projectFiles].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="flex flex-col h-screen bg-[#F6F7F9] font-sans overflow-hidden text-gray-800 selection:bg-accent/20">
@@ -188,33 +484,295 @@ export default function EditorPage({ params }: { params: { id: string } }) {
         </div>
       </header>
 
-      {/* Main Workspace */}
       <div className="flex flex-1 overflow-hidden">
         
-        {/* Activity Bar (Thin left sidebar) */}
         <div className="w-[48px] bg-[#FDFDFD] border-r border-gray-200 flex flex-col items-center py-4 gap-4 shrink-0 z-10 shadow-[2px_0_10px_rgba(0,0,0,0.02)] hidden md:flex">
-          <button className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors">
-            <Search className="w-5 h-5" />
+          <button 
+            onClick={() => setActiveTab(activeTab === 'files' ? null : 'files')}
+            className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${activeTab === 'files' ? 'bg-[#E5E7EB] text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>
+            <File className="w-[20px] h-[20px]" strokeWidth={2} />
           </button>
-          <button className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent/10 text-accent transition-colors">
-            <Book className="w-5 h-5" />
+          <button 
+            onClick={() => setActiveTab(activeTab === 'search' ? null : 'search')}
+            className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${activeTab === 'search' ? 'bg-[#E5E7EB] text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>
+            <Search className="w-[20px] h-[20px]" strokeWidth={2} />
           </button>
-          <button className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors">
-            <PenTool className="w-5 h-5" />
+          <button 
+            onClick={() => setActiveTab(activeTab === 'outline' ? null : 'outline')}
+            className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${activeTab === 'outline' ? 'bg-[#E5E7EB] text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>
+            <Book className="w-[20px] h-[20px]" strokeWidth={2} />
           </button>
+
           <div className="flex-1" />
-          <button className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors">
-            <Settings className="w-5 h-5" />
+          
+          <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+            <PenTool className="w-[20px] h-[20px]" strokeWidth={2} />
           </button>
-          <button className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors">
-            <HelpIcon className="w-5 h-5" />
+          <button className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+            <Settings className="w-[20px] h-[20px]" strokeWidth={2} />
           </button>
-          <div className="w-10 flex items-center justify-center mt-2 mb-8">
-            <div className="text-gray-200 font-serif font-bold -rotate-90 tracking-[0.2em] text-lg uppercase select-none">kairo</div>
-          </div>
         </div>
 
-        {/* Resizable Panels */}
+        {activeTab && (
+          <div className="w-[260px] bg-[#FDFDFD] border-r border-gray-200 flex flex-col shrink-0 shadow-[2px_0_15px_rgba(0,0,0,0.03)] z-10">
+            {activeTab === 'files' && (
+              <div className="p-4 flex flex-col h-full overflow-hidden">
+                <div className="h-[52px] flex items-center justify-between shrink-0">
+                  <h2 className="font-bold text-gray-900 text-[15px]">Files</h2>
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex items-center border border-gray-300/80 rounded-[4px] overflow-hidden bg-white shadow-sm">
+                      <button onClick={() => { setCreatingItem('file'); setCreateInput(""); }} className="px-2 py-1.5 hover:bg-gray-50 border-r border-gray-200 text-gray-700 active:bg-gray-100 transition-colors" title="New File">
+                        <FilePlus className="w-[14px] h-[14px]" />
+                      </button>
+                      <button onClick={() => { setCreatingItem('folder'); setCreateInput(""); }} className="px-2 py-1.5 hover:bg-gray-50 text-gray-700 active:bg-gray-100 transition-colors" title="New Folder">
+                        <FolderPlus className="w-[14px] h-[14px]" />
+                      </button>
+                    </div>
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-[32px] h-[32px] flex items-center justify-center border border-gray-300/80 rounded-[4px] bg-white text-gray-700 hover:bg-gray-50 shadow-sm transition-colors"
+                      title="Upload File"
+                    >
+                      <Upload className="w-[14px] h-[14px]" />
+                    </button>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      className="hidden" 
+                      multiple 
+                      onChange={handleFileUpload} 
+                    />
+                  </div>
+                </div>
+
+                <div 
+                  className="flex-1 overflow-y-auto mt-2 pb-10 relative custom-scrollbar"
+                  onDragOver={(e) => { e.preventDefault(); }}
+                  onDrop={handleRootDrop}
+                >
+                  {creatingItem && (
+                    <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-y border-blue-100">
+                      {creatingItem === 'folder' ? (
+                        <Folder className="w-4 h-4 text-blue-500 shrink-0 fill-blue-100" strokeWidth={1.5} />
+                      ) : (
+                        <File className="w-4 h-4 text-blue-500 shrink-0" strokeWidth={1.5} />
+                      )}
+                      <input
+                        autoFocus
+                        value={createInput}
+                        onChange={(e) => setCreateInput(e.target.value)}
+                        onBlur={handleCreateSubmit}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCreateSubmit();
+                          if (e.key === 'Escape') {
+                            setCreatingItem(null);
+                            setCreateInput("");
+                          }
+                        }}
+                        placeholder={`New ${creatingItem}...`}
+                        className="text-[13px] bg-white border border-blue-400 px-1 py-0.5 w-full outline-none"
+                      />
+                    </div>
+                  )}
+                  {sortedFiles.filter(f => isVisible(f.name)).map((file, i) => {
+                    const depth = file.name.split('/').length - 1;
+                    const displayName = file.name.split('/').pop() || file.name;
+                    const isCollapsed = collapsedFolders.has(file.name);
+                    const isFolder = file.type === 'folder';
+
+                    return (
+                      <div 
+                        key={i} 
+                        tabIndex={0}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          setRenamingFile(file.name);
+                          setRenameInput(displayName);
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setContextMenu({ x: e.clientX, y: e.clientY, fileName: file.name });
+                        }}
+                        onClick={() => {
+                          if (isFolder) toggleFolder(file.name);
+                          else handleFileClick(file.name);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Delete' && file.name !== 'main.typ') {
+                            handleDeleteFile(file.name);
+                          }
+                        }}
+                        draggable={true}
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("fileName", file.name);
+                        }}
+                        onDragOver={(e) => {
+                          if (file.type === 'folder') {
+                            e.preventDefault();
+                            e.stopPropagation(); // prevent triggering root drop
+                            setDragOverFolder(file.name);
+                          }
+                        }}
+                        onDragLeave={() => {
+                          if (file.type === 'folder') setDragOverFolder(null);
+                        }}
+                        onDrop={(e) => handleDrop(e, file.name)}
+                        style={{ paddingLeft: `${8 + depth * 14}px`, paddingRight: '8px' }}
+                        className={`flex items-center justify-between group py-1 cursor-pointer transition-colors outline-none focus:ring-1 focus:ring-inset focus:ring-blue-400 border-l-[3px] ${
+                          dragOverFolder === file.name 
+                            ? 'bg-blue-50/50 border-blue-400' 
+                            : activeFile === file.name 
+                              ? 'bg-[#E5E7EB] text-gray-900 border-gray-400' 
+                              : 'text-gray-700 hover:bg-gray-50 border-transparent hover:border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 relative flex-1 truncate text-[13.5px]">
+                          {/* Tree Guide Lines */}
+                          {depth > 0 && (
+                            <div 
+                              className="absolute left-0 top-0 bottom-0 pointer-events-none"
+                              style={{ 
+                                left: `-${depth * 14}px`, 
+                                width: `${depth * 14}px` 
+                              }}
+                            >
+                              {Array.from({ length: depth }).map((_, dIdx) => (
+                                <div 
+                                  key={dIdx}
+                                  className="absolute top-0 bottom-0 border-l border-gray-200"
+                                  style={{ left: `${8 + dIdx * 14}px` }}
+                                />
+                              ))}
+                            </div>
+                          )}
+
+                          {isFolder ? (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); toggleFolder(file.name); }}
+                              className="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+                            >
+                              {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
+                          ) : (
+                            <div className="w-4 h-4 shrink-0" />
+                          )}
+
+                          {file.type === 'folder' && <Folder className="w-[14px] h-[14px] text-gray-400 shrink-0 fill-gray-100" strokeWidth={1.5} />}
+                          {file.type === 'typst' && <File className="w-[14px] h-[14px] text-gray-500 shrink-0" strokeWidth={1.5} />}
+                          {file.type === 'image' && <ImageIcon className="w-[14px] h-[14px] text-gray-500 shrink-0" strokeWidth={1.5} />}
+                          {file.type === 'bib' && <span className="text-[9px] font-bold tracking-tighter text-gray-500 bg-[#FDFDFD] border border-gray-200 px-0.5 rounded-[2px] leading-none w-[14px] h-[14px] flex items-center justify-center shrink-0">TEX</span>}
+                          {file.type === 'other' && <File className="w-[14px] h-[14px] text-gray-400 shrink-0" strokeWidth={1.5} />}
+                          
+                          {renamingFile === file.name ? (
+                            <input 
+                              autoFocus
+                              value={renameInput}
+                              onChange={(e) => setRenameInput(e.target.value)}
+                              onBlur={() => handleRenameSubmit(file.name)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleRenameSubmit(file.name);
+                                if (e.key === 'Escape') setRenamingFile(null);
+                              }}
+                              className="text-[13px] bg-white border border-blue-400 px-1 py-0.5 w-full outline-none"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : (
+                            <span className="text-[13px] truncate select-none">{displayName}</span>
+                          )}
+                        </div>
+                        
+                        {activeFile === file.name && !isFolder ? (
+                          <Eye className="w-[14px] h-[14px] text-gray-600 shrink-0 ml-2" />
+                        ) : (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setContextMenu({ x: rect.right, y: rect.bottom, fileName: file.name });
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded text-gray-500 shrink-0 ml-2 transition-opacity">
+                            <MoreHorizontal className="w-[14px] h-[14px]" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Context Menu Portal-like */}
+                  {contextMenu && (
+                    <div 
+                      className="fixed z-50 bg-white border border-gray-200 shadow-lg rounded-md py-1 w-40 flex flex-col"
+                      style={{ top: contextMenu.y, left: contextMenu.x }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button 
+                        className="px-4 py-1.5 text-[13px] text-gray-700 hover:bg-blue-50 hover:text-blue-600 text-left flex items-center gap-2"
+                        onClick={() => {
+                          setRenamingFile(contextMenu.fileName);
+                          setRenameInput(contextMenu.fileName);
+                          setContextMenu(null);
+                        }}
+                      >
+                        <Edit2 className="w-3.5 h-3.5" /> Rename
+                      </button>
+                      <button 
+                        className="px-4 py-1.5 text-[13px] text-red-600 hover:bg-red-50 text-left flex items-center gap-2"
+                        onClick={() => {
+                          handleDeleteFile(contextMenu.fileName);
+                          setContextMenu(null);
+                        }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'search' && (
+              <div className="p-4 flex flex-col h-full">
+                <div className="h-[44px] flex items-center shrink-0 mt-2 mb-2">
+                  <h2 className="font-bold text-gray-900 text-[15px]">Search & Replace</h2>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="border border-gray-300/80 rounded-[4px] bg-white flex items-center px-2 py-1.5 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent shadow-sm">
+                    <input type="text" placeholder="Search" className="outline-none text-[13px] w-full text-gray-700 placeholder:text-gray-400" />
+                    <div className="flex items-center gap-1.5 text-gray-400">
+                      <span className="text-[10px] font-bold">Aa</span>
+                      <Search className="w-3 h-3" />
+                    </div>
+                  </div>
+                  <div className="border border-gray-300/80 rounded-[4px] bg-white flex items-center px-2 py-1.5 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent shadow-sm">
+                    <input type="text" placeholder="Replace" className="outline-none text-[13px] w-full text-gray-700 placeholder:text-gray-400" />
+                    <div className="flex flex-col items-center leading-none text-gray-400">
+                      <span className="text-[8px] font-bold">a&gt;b</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'outline' && (
+              <div className="p-4 flex flex-col h-full">
+                <div className="h-[44px] flex items-center justify-between shrink-0 mt-2 mb-2">
+                  <h2 className="font-bold text-gray-900 text-[15px]">Outline</h2>
+                  <div className="flex items-center border border-gray-300/80 rounded-[4px] overflow-hidden bg-white shadow-sm">
+                    <button className="px-2 py-1 hover:bg-gray-50 border-r border-gray-200 text-gray-700 text-lg leading-none active:bg-gray-100 transition-colors">+</button>
+                    <button className="px-2 py-1 hover:bg-gray-50 text-gray-700 text-lg leading-none active:bg-gray-100 transition-colors">−</button>
+                  </div>
+                </div>
+                <div className="text-[13px] text-[#0A2640] font-medium flex flex-col gap-3 mt-2">
+                  <div className="cursor-pointer flex items-center gap-2 hover:text-accent transition-colors"><ChevronLeft className="w-3 h-3 rotate-180 text-gray-400" /> Introduction</div>
+                  <div className="ml-5 cursor-pointer hover:text-accent transition-colors">Methods</div>
+                  <div className="ml-5 cursor-pointer hover:text-accent transition-colors">References</div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <PanelGroup direction="horizontal" className="flex-1">
           
           {/* Editor Panel */}
@@ -244,33 +802,47 @@ export default function EditorPage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            {/* Code Editor */}
-            <div className="flex-1 overflow-hidden relative">
-              <Editor
-                height="100%"
-                language="typst"
-                theme="kairo-light"
-                value={code}
-                onChange={(val) => setCode(val || "")}
-                beforeMount={handleEditorWillMount}
-                onMount={(editor) => { editorRef.current = editor; }}
-                options={{
-                  minimap: { enabled: false },
-                  lineNumbersMinChars: 3,
-                  fontSize: 14,
-                  fontFamily: "var(--font-mono), monospace",
-                  padding: { top: 24, bottom: 24 },
-                  scrollBeyondLastLine: false,
-                  wordWrap: "on",
-                  overviewRulerLanes: 0,
-                  hideCursorInOverviewRuler: true,
-                  renderLineHighlight: "none",
-                  scrollbar: {
-                    vertical: "hidden",
-                    horizontal: "hidden"
-                  }
-                }}
-              />
+            {/* Code Editor or Image Viewer */}
+            <div className="flex-1 overflow-hidden relative bg-[#FDFDFD]">
+              {activeFile.match(/\.(png|jpe?g|gif|svg|webp)$/i) ? (
+                <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-gray-50 border-t border-gray-200">
+                  <div className="max-w-[80%] max-h-[80%] bg-white p-4 shadow-sm border border-gray-200 rounded-lg flex items-center justify-center">
+                    <img 
+                      src={`/api/files/content?id=default&name=${encodeURIComponent(activeFile)}&t=${Date.now()}`} 
+                      alt={activeFile} 
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                  <p className="mt-4 text-sm text-gray-500 font-medium">{activeFile}</p>
+                </div>
+              ) : (
+                <Editor
+                  height="100%"
+                  path={activeFile}
+                  language={activeFile.endsWith('.bib') ? "bibtex" : "typst"}
+                  theme="kairo-light"
+                  defaultValue={INITIAL_CODE}
+                  onChange={(val) => setCode(val || "")}
+                  beforeMount={handleEditorWillMount}
+                  onMount={(editor) => { editorRef.current = editor; }}
+                  options={{
+                    minimap: { enabled: false },
+                    lineNumbersMinChars: 3,
+                    fontSize: 14,
+                    fontFamily: "var(--font-mono), monospace",
+                    padding: { top: 24, bottom: 24 },
+                    scrollBeyondLastLine: false,
+                    wordWrap: "on",
+                    overviewRulerLanes: 0,
+                    hideCursorInOverviewRuler: true,
+                    renderLineHighlight: "none",
+                    scrollbar: {
+                      vertical: "hidden",
+                      horizontal: "hidden"
+                    }
+                  }}
+                />
+              )}
             </div>
 
           </Panel>
@@ -303,7 +875,10 @@ export default function EditorPage({ params }: { params: { id: string } }) {
             </div>
 
             {/* Document Preview Area */}
-            <div className="flex-1 overflow-auto bg-[#F3F4F6] custom-scrollbar relative">
+            <div 
+              ref={previewContainerRef}
+              className="flex-1 overflow-auto bg-[#F3F4F6] custom-scrollbar relative"
+            >
               
               {/* Compiling Overlay / Indicator */}
               {isCompiling && (
@@ -324,7 +899,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
                 {pages.map((svg, idx) => (
                   <div 
                     key={idx}
-                    className="bg-white shadow-md border border-gray-200/50 mb-8 origin-top [&>svg]:!max-w-none" 
+                    className="bg-white shadow-md border border-gray-200/50 mb-8 origin-top [&>svg]:!max-w-none transition-all duration-200 ease-out" 
                     style={{ 
                       transform: `scale(${zoom / 100})`, 
                       marginBottom: `${Math.max(32, (zoom/100 - 1) * 1123 + 32)}px`
