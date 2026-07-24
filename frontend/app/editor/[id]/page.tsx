@@ -117,13 +117,72 @@ export default function EditorPage({ params }: { params: { id: string } }) {
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, fileName: string } | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
 
-  // Search & Replace states
+  // Search & Replace
   const [searchQuery, setSearchQuery] = useState("");
-  const [replaceQuery, setReplaceQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<{ file: string, matches: {line: number, col: number, text: string, matchStart: number, matchLength: number}[] }[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [searchCaseSensitive, setSearchCaseSensitive] = useState(false);
+  const [replaceQuery, setReplaceQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<{file: string, matches: any[]}[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [collapsedSearchResults, setCollapsedSearchResults] = useState<Record<string, boolean>>({});
+
+  // Outline
+  const [collapsedOutlines, setCollapsedOutlines] = useState<Record<number, boolean>>({});
+
+  const outlines = useMemo(() => {
+    if (!activeFile.endsWith('.typ') && !activeFile.endsWith('.md')) return [];
+    const lines = code.split('\n');
+    const results = [];
+    for (let i = 0; i < lines.length; i++) {
+      const match = lines[i].match(/^(=+)\s+(.*)$/);
+      if (match) {
+        results.push({
+          line: i + 1,
+          depth: match[1].length,
+          text: match[2].trim().replace(/\[|\]/g, '') // strip brackets if any
+        });
+      }
+    }
+    return results.map((outline, i) => {
+      const nextOutline = results[i + 1];
+      const hasChildren = nextOutline && nextOutline.depth > outline.depth;
+      return { ...outline, hasChildren };
+    });
+  }, [code, activeFile]);
+
+  const visibleOutlines = useMemo(() => {
+    let hiddenUntilDepth: number | null = null;
+    return outlines.filter((outline) => {
+      if (hiddenUntilDepth !== null) {
+        if (outline.depth > hiddenUntilDepth) {
+          return false; 
+        } else {
+          hiddenUntilDepth = null;
+        }
+      }
+      
+      if (collapsedOutlines[outline.line]) {
+        hiddenUntilDepth = outline.depth;
+      }
+      return true;
+    });
+  }, [outlines, collapsedOutlines]);
+
+  const handleOutlineClick = (line: number) => {
+    if (editorRef.current) {
+      editorRef.current.revealLineInCenter(line);
+      editorRef.current.setPosition({ lineNumber: line, column: 1 });
+      editorRef.current.focus();
+    }
+  };
+
+  const handleExpandAllOutline = () => setCollapsedOutlines({});
+  const handleCollapseAllOutline = () => {
+    const allCollapsed: Record<number, boolean> = {};
+    outlines.forEach(o => {
+      if (o.hasChildren) allCollapsed[o.line] = true;
+    });
+    setCollapsedOutlines(allCollapsed);
+  };
 
   // Debounce search effect
   useEffect(() => {
@@ -973,18 +1032,58 @@ export default function EditorPage({ params }: { params: { id: string } }) {
             )}
             
             {activeTab === 'outline' && (
-              <div className="p-4 flex flex-col h-full">
+              <div className="p-4 flex flex-col h-full overflow-hidden">
                 <div className="h-[44px] flex items-center justify-between shrink-0 mt-2 mb-2">
                   <h2 className="font-bold text-gray-900 text-[15px]">Outline</h2>
                   <div className="flex items-center border border-gray-300/80 rounded-[4px] overflow-hidden bg-white shadow-sm">
-                    <button className="px-2 py-1 hover:bg-gray-50 border-r border-gray-200 text-gray-700 text-lg leading-none active:bg-gray-100 transition-colors">+</button>
-                    <button className="px-2 py-1 hover:bg-gray-50 text-gray-700 text-lg leading-none active:bg-gray-100 transition-colors">−</button>
+                    <button 
+                      onClick={handleExpandAllOutline}
+                      title="Expand All"
+                      className="px-2 py-1 hover:bg-gray-50 border-r border-gray-200 text-gray-700 text-lg leading-none active:bg-gray-100 transition-colors"
+                    >+</button>
+                    <button 
+                      onClick={handleCollapseAllOutline}
+                      title="Collapse All"
+                      className="px-2 py-1 hover:bg-gray-50 text-gray-700 text-lg leading-none active:bg-gray-100 transition-colors"
+                    >−</button>
                   </div>
                 </div>
-                <div className="text-[13px] text-[#0A2640] font-medium flex flex-col gap-3 mt-2">
-                  <div className="cursor-pointer flex items-center gap-2 hover:text-accent transition-colors"><ChevronLeft className="w-3 h-3 rotate-180 text-gray-400" /> Introduction</div>
-                  <div className="ml-5 cursor-pointer hover:text-accent transition-colors">Methods</div>
-                  <div className="ml-5 cursor-pointer hover:text-accent transition-colors">References</div>
+                <div className="flex-1 overflow-y-auto mt-2 custom-scrollbar pb-10">
+                  {outlines.length === 0 ? (
+                    <div className="text-[12px] text-gray-400 text-center py-4">No headings found in this file</div>
+                  ) : (
+                    <div className="flex flex-col">
+                      {visibleOutlines.map((outline) => (
+                        <div 
+                          key={outline.line}
+                          className="flex items-center gap-1.5 hover:bg-gray-100/80 py-1.5 rounded cursor-pointer transition-colors text-[13px] text-[#0A2640] font-medium group"
+                          style={{ paddingLeft: `${(outline.depth - 1) * 16 + 4}px` }}
+                          onClick={() => handleOutlineClick(outline.line)}
+                        >
+                          <div 
+                            className="w-4 h-4 flex items-center justify-center shrink-0"
+                            onClick={(e) => {
+                              if (outline.hasChildren) {
+                                e.stopPropagation();
+                                setCollapsedOutlines(prev => ({ ...prev, [outline.line]: !prev[outline.line] }));
+                              }
+                            }}
+                          >
+                            {outline.hasChildren ? (
+                              collapsedOutlines[outline.line] ? (
+                                <ChevronRight className="w-3.5 h-3.5 text-gray-400 hover:text-gray-700 transition-colors" />
+                              ) : (
+                                <ChevronDown className="w-3.5 h-3.5 text-gray-400 hover:text-gray-700 transition-colors" />
+                              )
+                            ) : (
+                              <span className="w-3.5 h-3.5 inline-block" />
+                            )}
+                          </div>
+                          <span className="truncate group-hover:text-accent transition-colors">{outline.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
