@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Editor from "@monaco-editor/react";
+import { getTypstCompletions } from "@/utils/typst-completions";
+import { TypstLspClient } from "@/utils/lsp-client";
+
+export let globalLspClient: TypstLspClient | null = null;
 
 const INITIAL_CODE = `#import "@preview/charged-ieee:0.1.4": ieee
 
@@ -88,6 +92,62 @@ function handleEditorWillMount(monaco: any) {
         "editorLineNumber.foreground": "#D1D5DB",
         "editorLineNumber.activeForeground": "#9CA3AF",
         "editor.selectionBackground": "#E5E7EB",
+      }
+    });
+
+    monaco.languages.registerCompletionItemProvider("typst", {
+      triggerCharacters: ['#', '@', '<', '.', '/', ':'],
+      provideCompletionItems: async (model: any, position: any) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn
+        };
+
+        let suggestions: any[] = getTypstCompletions(monaco, range);
+        
+        if (globalLspClient) {
+          try {
+            const lspCompletions = await globalLspClient.getCompletions(position);
+            if (lspCompletions && lspCompletions.items) {
+              const lspSuggestions = lspCompletions.items.map((item: any) => ({
+                label: item.label,
+                kind: item.kind || monaco.languages.CompletionItemKind.Function,
+                insertText: item.insertText || (item.textEdit ? item.textEdit.newText : item.label),
+                insertTextRules: item.insertTextFormat === 2 ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : 0,
+                detail: item.detail,
+                documentation: item.documentation?.value || item.documentation,
+                range: range
+              }));
+              // Combine and remove duplicates based on label if needed
+              suggestions = [...suggestions, ...lspSuggestions];
+            }
+          } catch (e) {
+            console.error("LSP Completion error", e);
+          }
+        }
+
+        return { suggestions };
+      }
+    });
+
+    monaco.languages.registerHoverProvider("typst", {
+      provideHover: async (model: any, position: any) => {
+        if (globalLspClient) {
+          try {
+            const hover = await globalLspClient.getHover(position);
+            if (hover && hover.contents) {
+              return {
+                contents: Array.isArray(hover.contents) ? hover.contents : [hover.contents]
+              };
+            }
+          } catch (e) {
+            console.error("LSP Hover error", e);
+          }
+        }
+        return null;
       }
     });
   }
@@ -1247,9 +1307,41 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                   language={activeFile.endsWith('.bib') ? "bibtex" : "typst"}
                   theme="kairo-light"
                   value={code}
-                  onChange={(val) => setCode(val || "")}
+                  onChange={(val) => {
+                    setCode(val || "");
+                    if (globalLspClient) {
+                      globalLspClient.didChange();
+                    }
+                  }}
                   beforeMount={handleEditorWillMount}
-                  onMount={(editor) => { editorRef.current = editor; }}
+                  onMount={(editor, monaco) => { 
+                    editorRef.current = editor; 
+                    
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${protocol}//localhost:8000/api/v1/ws/lsp/typst`;
+                    // Fix project root URI
+                    const projectUri = `file:///d:/dave-workspace/kairo-studio/frontend/proj_${id}/${activeFile}`;
+                    
+                    if (globalLspClient) {
+                      globalLspClient.dispose();
+                    }
+                    
+                    // eslint-disable-next-line
+                    // @ts-ignore
+                    globalLspClient = new TypstLspClient(wsUrl, editor, monaco, projectUri);
+                    globalLspClient.onDiagnostics = (diagnostics) => {
+                      const markers = diagnostics.map((d: any) => ({
+                        severity: d.severity === 1 ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
+                        startLineNumber: d.range.start.line + 1,
+                        startColumn: d.range.start.character + 1,
+                        endLineNumber: d.range.end.line + 1,
+                        endColumn: d.range.end.character + 1,
+                        message: d.message,
+                      }));
+                      monaco.editor.setModelMarkers(editor.getModel(), "typst", markers);
+                    };
+                    globalLspClient.connect().catch(console.error);
+                  }}
                   options={{
                     minimap: { enabled: false },
                     lineNumbersMinChars: 3,
