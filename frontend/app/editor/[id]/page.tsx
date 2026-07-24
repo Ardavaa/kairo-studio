@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import {
   ChevronLeft, File, Edit, View, HelpCircle, Cloud, Share, Download,
@@ -73,7 +73,48 @@ export default function EditorPage({ params }: { params: { id: string } }) {
   const [code, setCode] = useState(INITIAL_CODE);
   const [pages, setPages] = useState<string[]>([]);
   const [isCompiling, setIsCompiling] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const editorRef = useRef<any>(null);
+
+  const formatText = (prefix: string, suffix: string = "") => {
+    if (!editorRef.current) return;
+    const editor = editorRef.current;
+    const selection = editor.getSelection();
+    const model = editor.getModel();
+    const text = model.getValueInRange(selection);
+    
+    editor.executeEdits("toolbar", [{
+      range: selection,
+      text: prefix + text + suffix,
+      forceMoveMarkers: true
+    }]);
+    editor.focus();
+  };
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    try {
+      const res = await fetch("/api/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code })
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "document.pdf";
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to export PDF.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     const compile = async () => {
@@ -137,8 +178,12 @@ export default function EditorPage({ params }: { params: { id: string } }) {
           <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-md font-medium text-gray-700 hover:bg-gray-50 active:scale-[0.98] transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-sm">
             Share
           </button>
-          <button className="flex items-center justify-center w-8 h-8 bg-white border border-gray-200 rounded-md text-gray-700 hover:bg-gray-50 active:scale-[0.98] transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-sm">
-            <Download className="w-4 h-4" />
+          <button 
+            onClick={handleExportPDF}
+            disabled={isExporting}
+            className={`flex items-center justify-center w-8 h-8 bg-white border border-gray-200 rounded-md text-gray-700 hover:bg-gray-50 active:scale-[0.98] transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-sm ${isExporting ? 'opacity-50 cursor-wait' : ''}`}
+          >
+            {isExporting ? <div className="w-4 h-4 rounded-full border-2 border-gray-400 border-t-transparent animate-spin" /> : <Download className="w-4 h-4" />}
           </button>
         </div>
       </header>
@@ -180,23 +225,22 @@ export default function EditorPage({ params }: { params: { id: string } }) {
               <div className="flex items-center gap-1 p-1">
                 <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 font-serif font-bold text-sm transition-colors">Ag</button>
                 <div className="w-[1px] h-4 bg-gray-200 mx-1" />
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Bold className="w-4 h-4" /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Italic className="w-4 h-4" /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Underline className="w-4 h-4" /></button>
+                <button onClick={() => formatText('*', '*')} className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Bold className="w-4 h-4" /></button>
+                <button onClick={() => formatText('_', '_')} className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Italic className="w-4 h-4" /></button>
+                <button onClick={() => formatText('#underline[', ']')} className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Underline className="w-4 h-4" /></button>
                 <div className="w-[1px] h-4 bg-gray-200 mx-1" />
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Heading className="w-4 h-4" /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><List className="w-4 h-4" /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><ListOrdered className="w-4 h-4" /></button>
+                <button onClick={() => formatText('= ')} className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Heading className="w-4 h-4" /></button>
+                <button onClick={() => formatText('- ')} className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><List className="w-4 h-4" /></button>
+                <button onClick={() => formatText('+ ')} className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><ListOrdered className="w-4 h-4" /></button>
                 <div className="w-[1px] h-4 bg-gray-200 mx-1" />
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Sigma className="w-4 h-4" /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Code className="w-4 h-4" /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><AtSign className="w-4 h-4" /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><MessageSquare className="w-4 h-4" /></button>
+                <button onClick={() => formatText('$ ', ' $')} className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Sigma className="w-4 h-4" /></button>
+                <button onClick={() => formatText('`', '`')} className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Code className="w-4 h-4" /></button>
+                <button onClick={() => formatText('@')} className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><AtSign className="w-4 h-4" /></button>
               </div>
 
               <div className="flex items-center gap-1 p-1">
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Undo className="w-4 h-4" /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Redo className="w-4 h-4" /></button>
+                <button onClick={() => editorRef.current?.trigger('keyboard', 'undo', null)} className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Undo className="w-4 h-4" /></button>
+                <button onClick={() => editorRef.current?.trigger('keyboard', 'redo', null)} className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"><Redo className="w-4 h-4" /></button>
               </div>
             </div>
 
@@ -209,6 +253,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
                 value={code}
                 onChange={(val) => setCode(val || "")}
                 beforeMount={handleEditorWillMount}
+                onMount={(editor) => { editorRef.current = editor; }}
                 options={{
                   minimap: { enabled: false },
                   lineNumbersMinChars: 3,
@@ -243,16 +288,16 @@ export default function EditorPage({ params }: { params: { id: string } }) {
             
             {/* Preview Toolbar */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center bg-white/90 backdrop-blur-md border border-gray-200/80 rounded-lg shadow-sm overflow-hidden z-20 h-[36px]">
-              <button className="px-3 h-full flex items-center justify-center text-gray-600 hover:bg-gray-50 border-r border-gray-100 active:bg-gray-100 transition-colors">
+              <button onClick={() => setZoom(z => Math.max(50, z - 25))} className="px-3 h-full flex items-center justify-center text-gray-600 hover:bg-gray-50 border-r border-gray-100 active:bg-gray-100 transition-colors">
                 <ZoomOut className="w-4 h-4" />
               </button>
               <div className="px-4 text-[13px] font-medium text-gray-700 min-w-[70px] text-center select-none">
                 {zoom}%
               </div>
-              <button className="px-3 h-full flex items-center justify-center text-gray-600 hover:bg-gray-50 border-l border-gray-100 active:bg-gray-100 transition-colors">
+              <button onClick={() => setZoom(z => Math.min(300, z + 25))} className="px-3 h-full flex items-center justify-center text-gray-600 hover:bg-gray-50 border-l border-gray-100 active:bg-gray-100 transition-colors">
                 <ZoomIn className="w-4 h-4" />
               </button>
-              <button className="px-3 h-full flex items-center justify-center text-gray-600 hover:bg-gray-50 border-l border-gray-100 active:bg-gray-100 transition-colors" title="Fit to page">
+              <button onClick={() => setZoom(135)} className="px-3 h-full flex items-center justify-center text-gray-600 hover:bg-gray-50 border-l border-gray-100 active:bg-gray-100 transition-colors" title="Fit to page">
                 <Maximize className="w-4 h-4" />
               </button>
             </div>
