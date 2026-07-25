@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Menu, Home, Search, Book, User, Building2,
   FileText, Sparkles, CheckSquare, FolderOpen,
@@ -15,6 +15,17 @@ import Image from "next/image";
 import Link from "next/link";
 
 export default function Page() {
+  const [user, setUser] = useState<{ name: string; email: string; avatar?: string; provider: string } | null>(null);
+
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedUser = localStorage.getItem("kairo_user");
+      if (savedUser) {
+        try { setUser(JSON.parse(savedUser)); } catch (e) {}
+      }
+    }
+  }, []);
   return (
     <div className="flex min-h-screen bg-warm-white text-primary">
 
@@ -36,9 +47,34 @@ export default function Page() {
             <a href="#" className="flex items-center gap-2 hover:text-accent transition-colors">
               <Bookmark className="w-4 h-4" /> My Library
             </a>
-            <Link href="/auth?mode=signin" className="px-5 py-2 text-accent border border-soft-border rounded hover:bg-accent/5 hover:border-accent transition-all bg-paper-white block text-center">
-              Sign in
-            </Link>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-neutral-100/80 px-3 py-1.5 rounded-full border border-neutral-200/60">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="w-5 h-5 rounded-full object-cover border border-neutral-200" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-[#E86A24] text-white flex items-center justify-center text-[10px] font-bold uppercase">
+                      {user.name.charAt(0)}
+                    </div>
+                  )}
+                  <span className="text-xs font-medium text-neutral-800">{user.name}</span>
+                </div>
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem("kairo_user");
+                    setUser(null);
+                  }}
+                  className="text-xs text-neutral-400 hover:text-neutral-600 underline transition-colors"
+                  title="Sign out"
+                >
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <Link href="/auth?mode=signin" className="px-5 py-2 text-accent border border-soft-border rounded hover:bg-accent/5 hover:border-accent transition-all bg-paper-white block text-center">
+                Sign in
+              </Link>
+            )}
           </div>
         </header>
         <div className="h-px bg-soft-border absolute top-[72px] left-0 right-0 z-20 hidden md:block"></div>

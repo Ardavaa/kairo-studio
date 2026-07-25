@@ -25,6 +25,19 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [user, setUser] = useState<{ name: string; email: string; avatar?: string; provider: string } | null>(null);
+
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedUser = localStorage.getItem("kairo_user");
+      if (savedUser) {
+        try { setUser(JSON.parse(savedUser)); } catch (e) {}
+      } else {
+        setUser(null);
+      }
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -234,8 +247,38 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Enhance Your Research Card */}
-      {showEnhanceCard && !effectiveIsCollapsed && (
+      {/* User Profile Card or Enhance Your Research Card */}
+      {user ? (
+        !effectiveIsCollapsed && (
+          <div className="p-4">
+            <div className="bg-paper-white rounded-xl p-4 border border-soft-border shadow-xs flex items-center justify-between">
+              <div className="flex items-center gap-3 overflow-hidden">
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover border border-neutral-200 shadow-xs shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-[#E86A24] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                    {user.name.charAt(0)}
+                  </div>
+                )}
+                <div className="overflow-hidden">
+                  <div className="text-xs font-semibold text-primary truncate">{user.name}</div>
+                  <div className="text-[10px] text-muted truncate">{user.email}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  localStorage.removeItem("kairo_user");
+                  setUser(null);
+                }}
+                className="text-[11px] text-neutral-400 hover:text-red-500 font-medium px-2 py-1 rounded transition-colors shrink-0"
+                title="Sign out"
+              >
+                Exit
+              </button>
+            </div>
+          </div>
+        )
+      ) : showEnhanceCard && !effectiveIsCollapsed ? (
         <div className="p-4">
           <div className="bg-paper-white rounded-xl p-5 border border-soft-border shadow-sm relative">
             <button 
@@ -258,7 +301,7 @@ export default function Sidebar() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Footer System Actions */}
       <div className={cn("border-t border-soft-border p-4 space-y-1", effectiveIsCollapsed && "px-2")}>
