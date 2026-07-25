@@ -1081,7 +1081,9 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                         onContextMenu={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setContextMenu({ x: e.clientX, y: e.clientY, fileName: file.name });
+                          const menuHeight = 80;
+                          const y = window.innerHeight - e.clientY < menuHeight + 20 ? e.clientY - menuHeight : e.clientY;
+                          setContextMenu({ x: e.clientX, y, fileName: file.name });
                         }}
                         onClick={() => {
                           if (isFolder) toggleFolder(file.name);
@@ -1178,7 +1180,9 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                             onClick={(e) => {
                               e.stopPropagation();
                               const rect = e.currentTarget.getBoundingClientRect();
-                              setContextMenu({ x: rect.right, y: rect.bottom, fileName: file.name });
+                              const menuHeight = 80;
+                              const y = window.innerHeight - rect.bottom < menuHeight + 20 ? rect.top - menuHeight : rect.bottom;
+                              setContextMenu({ x: rect.right, y, fileName: file.name });
                             }}
                             className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded text-gray-500 shrink-0 ml-2 transition-opacity">
                             <MoreHorizontal className="w-[14px] h-[14px]" />

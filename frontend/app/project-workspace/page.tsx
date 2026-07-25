@@ -341,7 +341,10 @@ export default function ProjectWorkspacePage() {
                           e.stopPropagation();
                           e.preventDefault();
                           const rect = e.currentTarget.getBoundingClientRect();
-                          setContextMenu({ id: project.id, x: rect.right, y: rect.bottom });
+                          const menuHeight = 114;
+                          const y = window.innerHeight - rect.bottom < menuHeight + 20 ? rect.top - menuHeight : rect.bottom;
+                          const x = Math.max(144, Math.min(rect.right, window.innerWidth - 10));
+                          setContextMenu({ id: project.id, x, y });
                         }}
                       >
                         <MoreHorizontal className="w-4 h-4 text-gray-500" />
@@ -378,7 +381,10 @@ export default function ProjectWorkspacePage() {
                         e.stopPropagation();
                         e.preventDefault();
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setContextMenu({ id: project.id, x: rect.right - 100, y: rect.bottom });
+                        const menuHeight = 114;
+                        const y = window.innerHeight - rect.bottom < menuHeight + 20 ? rect.top - menuHeight : rect.bottom;
+                        const x = Math.max(144, Math.min(rect.right - 100, window.innerWidth - 10));
+                        setContextMenu({ id: project.id, x, y });
                       }}
                     >
                       <MoreHorizontal className="w-4 h-4 text-gray-500" />
