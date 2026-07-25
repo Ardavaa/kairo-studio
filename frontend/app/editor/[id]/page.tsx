@@ -7,7 +7,7 @@ import {
   Bold, Italic, Underline, Heading, List, ListOrdered, Sigma, Code, AtSign, MessageSquare,
   Undo, Redo, ZoomIn, ZoomOut, Maximize, GripVertical, Search, Book, PenTool, Settings, HelpCircle as HelpIcon, FileText,
   FolderPlus, FilePlus, Upload, Image as ImageIcon, Eye, MoreHorizontal, Trash2, Edit2, Folder,
-  ChevronRight, ChevronDown, AlertCircle, CheckCircle
+  ChevronRight, ChevronDown, AlertCircle, CheckCircle, ArrowUp, Sparkles, CheckCircle2, X
 } from "lucide-react";
 import Link from "next/link";
 import Editor, { DiffEditor } from "@monaco-editor/react";
@@ -221,6 +221,44 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
   const [isGeneratingVibe, setIsGeneratingVibe] = useState(false);
   const [proposedCode, setProposedCode] = useState<string | null>(null);
   const [originalCodeForDiff, setOriginalCodeForDiff] = useState<string | null>(null);
+  const [vibeMessages, setVibeMessages] = useState<{
+    id: string;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    status?: 'running' | 'done' | 'error';
+    diffStats?: { added: number; removed: number };
+  }[]>([]);
+  const [vibePanelHeight, setVibePanelHeight] = useState(400);
+  const isResizingVibeRef = useRef(false);
+  const vibeChatScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingVibeRef.current) return;
+      const windowHeight = window.innerHeight;
+      const bottomOffset = 24;
+      const newHeight = windowHeight - e.clientY - bottomOffset;
+      if (newHeight >= 180 && newHeight <= windowHeight * 0.8) {
+        setVibePanelHeight(newHeight);
+      }
+    };
+    const handleMouseUp = () => {
+      isResizingVibeRef.current = false;
+      document.body.style.cursor = 'default';
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (vibeChatScrollRef.current) {
+      vibeChatScrollRef.current.scrollTop = vibeChatScrollRef.current.scrollHeight;
+    }
+  }, [vibeMessages, proposedCode]);
 
   // Search & Replace
   const [searchQuery, setSearchQuery] = useState("");
@@ -438,18 +476,45 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
 
   const handleVibeSubmit = async () => {
     if (!vibeInput.trim() || isGeneratingVibe) return;
+    const userPrompt = vibeInput.trim();
+    setVibeInput("");
     setIsGeneratingVibe(true);
     setOriginalCodeForDiff(code);
+    
+    const userMsgId = Date.now() + '-u';
+    const aiMsgId = Date.now() + '-a';
+    setVibeMessages(prev => [
+      ...prev,
+      { id: userMsgId, role: 'user', content: userPrompt },
+      { id: aiMsgId, role: 'assistant', content: 'Generating changes...', status: 'running' }
+    ]);
+
     try {
       const res = await fetch('http://localhost:8000/api/v1/editor/vibe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ current_code: code, instruction: vibeInput })
+        body: JSON.stringify({ current_code: code, instruction: userPrompt })
       });
       if (res.ok) {
         const data = await res.json();
         const newCode = data.proposed_code;
         setProposedCode(newCode);
+        
+        // Calculate diff stats
+        const origLines = code.split('\n');
+        const newLines = newCode.split('\n');
+        const origSet = new Set(origLines);
+        const newSet = new Set(newLines);
+        let added = 0, removed = 0;
+        for (const l of newLines) if (!origSet.has(l)) added++;
+        for (const l of origLines) if (!newSet.has(l)) removed++;
+        
+        setVibeMessages(prev => prev.map(msg => msg.id === aiMsgId ? {
+          ...msg,
+          content: `Perubahan berhasil dibuat dan diterapkan langsung pada dokumen. Perintah dan struktur kode tetap dipertahankan.`,
+          status: 'done',
+          diffStats: { added, removed }
+        } : msg));
         
         // Auto-apply to editor immediately so the PDF preview updates!
         setCode(newCode);
@@ -457,9 +522,20 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
           editorRef.current.setValue(newCode);
           if (globalLspClient) globalLspClient.didChange();
         }
+      } else {
+        setVibeMessages(prev => prev.map(msg => msg.id === aiMsgId ? {
+          ...msg,
+          content: "Gagal membuat perubahan. Terjadi kesalahan pada server AI.",
+          status: 'error'
+        } : msg));
       }
     } catch (e) {
       console.error("Vibe API error", e);
+      setVibeMessages(prev => prev.map(msg => msg.id === aiMsgId ? {
+        ...msg,
+        content: "Gagal menghubungkan ke server AI.",
+        status: 'error'
+      } : msg));
     } finally {
       setIsGeneratingVibe(false);
     }
@@ -469,7 +545,10 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
     // Already applied to the hidden editor, just clear the diff state
     setProposedCode(null);
     setOriginalCodeForDiff(null);
-    setIsVibeMode(false);
+    setVibeMessages(prev => [
+      ...prev,
+      { id: Date.now() + '-s', role: 'system', content: `Perubahan pada ${activeFile} berhasil disimpan.` }
+    ]);
   };
 
   const handleUndoChanges = () => {
@@ -483,7 +562,10 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
     }
     setProposedCode(null);
     setOriginalCodeForDiff(null);
-    setIsVibeMode(false);
+    setVibeMessages(prev => [
+      ...prev,
+      { id: Date.now() + '-s', role: 'system', content: `Perubahan pada ${activeFile} dibatalkan.` }
+    ]);
   };
 
   // Fetch files and initial content on mount
@@ -1484,26 +1566,175 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
             )}
             </div>
 
-            {/* Vibe Coding UI Floating Panel */}
+            {/* Vibe Coding UI Floating Panel (Academic & Minimal per DESIGN_SYSTEM.md) */}
             {isVibeMode && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[85%] max-w-2xl z-40">
-                {proposedCode ? (
-                  <div className="bg-white border border-gray-200 shadow-xl rounded-md overflow-hidden text-gray-800 text-sm">
-                    <div className="flex items-center justify-between p-3 border-b border-gray-100 bg-gray-50/80 backdrop-blur">
-                      <div className="flex items-center gap-3">
-                        <span className="font-semibold text-gray-900 flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" /> Review Changes
-                        </span>
-                        <span className="text-gray-500 text-xs">AI proposed</span>
+              <div 
+                className="absolute inset-x-4 bottom-4 z-40 transition-all duration-150"
+                style={ (vibeMessages.length > 0 || isGeneratingVibe || proposedCode) ? { height: `${vibePanelHeight}px` } : undefined }
+              >
+                {(vibeMessages.length > 0 || isGeneratingVibe || proposedCode) ? (
+                  <div 
+                    className="bg-white border border-[#E8E5E0] rounded-[12px] overflow-hidden flex flex-col h-full text-[#1D1D1F] text-sm"
+                    style={{ boxShadow: '0 6px 20px rgba(0,0,0,.08)' }}
+                  >
+                    {/* Top Resize Handle & Quiet Header (No logos, no title per user request) */}
+                    <div 
+                      className="h-7 bg-white border-b border-[#E8E5E0] flex items-center justify-between px-3 shrink-0 cursor-ns-resize select-none group"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        isResizingVibeRef.current = true;
+                        document.body.style.cursor = 'ns-resize';
+                      }}
+                    >
+                      <div className="w-12" /> {/* Empty spacer for perfect center alignment */}
+                      <div className="w-10 h-1 bg-[#D1CDC7] group-hover:bg-[#A39E96] rounded-full transition-colors" title="Drag to resize" />
+                      <div className="flex items-center gap-2 w-12 justify-end">
+                        <button 
+                          onClick={() => { setVibeMessages([]); setProposedCode(null); }} 
+                          className="text-[11px] text-[#6B7280] hover:text-[#1D1D1F] px-1.5 py-0.5 rounded-[6px] hover:bg-[#E8E5E0]/60 transition-colors font-medium"
+                          title="Clear History"
+                        >
+                          Clear
+                        </button>
+                        <button 
+                          onClick={() => setIsVibeMode(false)} 
+                          className="text-[#6B7280] hover:text-[#1D1D1F] p-0.5 rounded-[6px] hover:bg-[#E8E5E0]/60 transition-colors"
+                          title="Close (Esc)"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <button onClick={handleUndoChanges} className="px-3 py-1 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">Discard</button>
-                        <button onClick={handleKeepChanges} className="px-3 py-1 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">Accept</button>
+                    </div>
+
+                    {/* Scrollable Conversation History (White background per user request) */}
+                    <div ref={vibeChatScrollRef} className="flex-1 overflow-y-auto p-5 space-y-5 min-h-0 bg-white">
+                      {vibeMessages.map((msg) => (
+                        <div key={msg.id} className="text-sm">
+                          {msg.role === 'user' && (
+                            <div className="flex justify-end">
+                              <div className="bg-[#efeeeb] text-[#1D1D1F] rounded-[10px] px-4 py-2.5 max-w-[85%] font-normal shadow-2xs text-[13.5px] leading-relaxed">
+                                {msg.content}
+                              </div>
+                            </div>
+                          )}
+                          {msg.role === 'assistant' && (
+                            <div className="flex items-start pr-4">
+                              <div className="text-[#1D1D1F] leading-relaxed flex-1 text-[13.5px] font-normal">
+                                {msg.status === 'running' ? (
+                                  <div className="flex items-center gap-2.5 text-[#6B7280]">
+                                    <div className="w-3.5 h-3.5 border-2 border-[#1D1D1F] border-t-transparent rounded-full animate-spin" />
+                                    <span className="italic">{msg.content}</span>
+                                  </div>
+                                ) : msg.status === 'error' ? (
+                                  <span className="text-[#C62828] font-medium">{msg.content}</span>
+                                ) : (
+                                  msg.content
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          {msg.role === 'system' as any && (
+                            <div className="flex justify-center my-2">
+                              <span className="bg-[#E8E5E0] text-[#6B7280] text-[11px] px-3 py-1 rounded-full font-mono">
+                                {msg.content}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Merge Changes Review Block inside chat (Academic & Minimal) */}
+                      {proposedCode && (
+                        <div className="mt-4 bg-[#F6F4F1] border border-[#E8E5E0] rounded-[10px] p-4 text-sm" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
+                          <div className="flex items-center justify-between border-b border-[#E8E5E0] pb-3 mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-[#1D1D1F] flex items-center gap-1.5 text-[13.5px]">
+                                <CheckCircle2 className="w-4 h-4 text-[#2E7D32]" /> Merge Changes
+                              </span>
+                              <span className="text-[11px] text-[#6B7280] bg-white border border-[#E8E5E0] px-2 py-0.5 rounded-[4px] font-mono">auto-applied</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button 
+                                onClick={handleUndoChanges} 
+                                className="text-xs font-medium text-[#6B7280] hover:text-[#1D1D1F] bg-white border border-[#E8E5E0] hover:bg-[#E8E5E0]/50 px-3 py-1.5 rounded-[8px] transition-colors"
+                              >
+                                Undo all
+                              </button>
+                              <button 
+                                onClick={handleKeepChanges} 
+                                className="text-xs font-medium text-white bg-[#E86A24] hover:bg-[#D55F1E] px-3.5 py-1.5 rounded-[8px] transition-colors shadow-2xs"
+                              >
+                                Keep all
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between text-xs py-0.5">
+                            <div className="flex items-center gap-2 font-mono text-[#6B7280]">
+                              <FileText className="w-3.5 h-3.5 text-[#6B7280]" />
+                              <span>{activeFile}</span>
+                              <span className="text-[#6B7280] italic">modified</span>
+                            </div>
+                            <div className="flex items-center gap-2 font-mono font-medium">
+                              {(() => {
+                                const origLines = (originalCodeForDiff || code).split('\n');
+                                const newLines = proposedCode.split('\n');
+                                const origSet = new Set(origLines);
+                                const newSet = new Set(newLines);
+                                let added = 0, removed = 0;
+                                for (const l of newLines) if (!origSet.has(l)) added++;
+                                for (const l of origLines) if (!newSet.has(l)) removed++;
+                                return (
+                                  <>
+                                    <span className="text-[#2E7D32]">+{added}</span>
+                                    <span className="text-[#C62828]">-{removed}</span>
+                                  </>
+                                );
+                              })()}
+                              <span className="bg-white border border-[#E8E5E0] text-[#1D1D1F] px-2 py-0.5 rounded-[4px] text-[11px] font-sans font-medium">
+                                Reviewing Inline
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bottom Fixed Input Bar inside card (No colored backgrounds, clean borders) */}
+                    <div className="p-3 border-t border-[#E8E5E0] bg-white shrink-0">
+                      <div className="flex items-center gap-2.5 bg-white border border-[#E8E5E0] rounded-[10px] px-3.5 py-1.5 focus-within:border-[#1D1D1F] transition-all" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
+                        <input
+                          autoFocus
+                          type="text"
+                          value={vibeInput}
+                          onChange={e => setVibeInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleVibeSubmit();
+                            if (e.key === 'Escape') setIsVibeMode(false);
+                          }}
+                          placeholder="Ask a follow-up..."
+                          className="flex-1 bg-transparent text-[#1D1D1F] placeholder-[#6B7280] border-none outline-none text-[13.5px] py-1.5"
+                          disabled={isGeneratingVibe}
+                        />
+                        <button 
+                          onClick={handleVibeSubmit}
+                          disabled={isGeneratingVibe || !vibeInput.trim()}
+                          className="w-8 h-8 flex items-center justify-center rounded-[8px] bg-[#E86A24] text-white hover:bg-[#D55F1E] disabled:opacity-30 disabled:bg-[#E8E5E0] disabled:text-[#6B7280] transition-colors shrink-0"
+                        >
+                          {isGeneratingVibe ? (
+                            <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <ArrowUp className="w-4 h-4 stroke-[2.25]" />
+                          )}
+                        </button>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-white border border-gray-200 shadow-2xl rounded-xl p-2 flex items-center gap-2">
+                  /* Compact Bottom Bar (Initial state before any prompt - Edge-to-Edge & Academic) */
+                  <div 
+                    className="bg-white border border-[#E8E5E0] rounded-[12px] p-2.5 flex items-center gap-2.5"
+                    style={{ boxShadow: '0 6px 20px rgba(0,0,0,.08)' }}
+                  >
                     <input
                       autoFocus
                       type="text"
@@ -1514,18 +1745,18 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                         if (e.key === 'Escape') setIsVibeMode(false);
                       }}
                       placeholder="Ask anything..."
-                      className="flex-1 bg-transparent text-gray-900 placeholder-gray-400 border-none outline-none px-3 py-2 text-sm"
+                      className="flex-1 bg-transparent text-[#1D1D1F] placeholder-[#6B7280] border-none outline-none px-3 py-2 text-[13.5px]"
                       disabled={isGeneratingVibe}
                     />
                     <button 
                       onClick={handleVibeSubmit}
                       disabled={isGeneratingVibe || !vibeInput.trim()}
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:bg-gray-300 disabled:text-gray-500 transition-colors"
+                      className="w-9 h-9 flex items-center justify-center rounded-[8px] bg-[#E86A24] text-white hover:bg-[#D55F1E] disabled:opacity-30 disabled:bg-[#E8E5E0] disabled:text-[#6B7280] transition-colors shrink-0"
                     >
                       {isGeneratingVibe ? (
                         <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                        <ArrowUp className="w-4 h-4 stroke-[2.25]" />
                       )}
                     </button>
                   </div>

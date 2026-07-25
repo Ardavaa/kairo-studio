@@ -1,46 +1,72 @@
-import re
+import sys
+import os
 
-def apply_patches(source: str, patch_text: str) -> str:
-    pattern = re.compile(r'<<<< SEARCH\s*\n(.*?)\n\s*====\s*\n(.*?)\n\s*>>>> REPLACE', re.DOTALL)
-    new_source = source
+# Add current directory to path so we can import app
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from app.api.endpoints.editor import apply_patches
+
+def test_targeted_edit():
+    source = """= Abstrak
+Penelitian ini mengusulkan arsitektur baru untuk analisis teks.
+= Pendahuluan
+Rekrutmen berbasis AI telah menjadi standar baru."""
     
-    matches = pattern.findall(patch_text)
-    print("Matches found:", len(matches))
-    if not matches:
-        return source # no patches found
-        
-    for search_text, replace_text in matches:
-        print("SEARCH TEXT:", repr(search_text))
-        if search_text in new_source:
-            print("EXACT MATCH SUCCESS")
-            new_source = new_source.replace(search_text, replace_text)
-        else:
-            # Fallback: try stripping trailing/leading whitespaces on both sides
-            search_text_stripped = search_text.strip()
-            print("FALLBACK ATTEMPT. STRIPPED:", repr(search_text_stripped))
-            if search_text_stripped and search_text_stripped in new_source:
-                print("FALLBACK MATCH SUCCESS")
-                new_source = new_source.replace(search_text_stripped, replace_text.strip())
-            else:
-                print("FALLBACK MATCH FAILED")
-                
-    return new_source
-
-source = """
-= Introduction
-#lorem(120)
-By leveraging advanced ALGORITHM we can conclude that the @netwok2020
-"""
-
-patch = """
-<<<< SEARCH
-= Introduction
-#lorem(120)
-By leveraging advanced ALGORITHM we can conclude that the @netwok2020
+    patch = """<<<< SEARCH
+= Abstrak
+Penelitian ini mengusulkan arsitektur baru untuk analisis teks.
 ====
-= Introduction
-Attention mechanisms allow transformers to weigh importance of different words.
->>>> REPLACE
-"""
+= Abstrak
+Penelitian ini mengusulkan arsitektur Late Fusion yang lebih akurat.
+>>>> REPLACE"""
+    
+    res = apply_patches(source, patch)
+    assert "Late Fusion yang lebih akurat" in res
+    assert "= Pendahuluan" in res
+    print("test_targeted_edit PASSED")
 
-print(apply_patches(source, patch))
+def test_empty_search_guard():
+    source = "= Abstrak\nIsi dokumen penting."
+    patch = """<<<< SEARCH
+====
+Teks baru yang rusak
+>>>> REPLACE"""
+    
+    res = apply_patches(source, patch)
+    assert res == source, f"Expected unchanged source, got: {res}"
+    print("test_empty_search_guard PASSED")
+
+def test_full_document_rewrite():
+    source = """= Abstrak
+Penelitian ini mengusulkan arsitektur baru untuk analisis teks.
+= Pendahuluan
+Rekrutmen berbasis AI telah menjadi standar baru."""
+    
+    # LLM outputs Option 2: Full translation without SEARCH/REPLACE blocks
+    patch = """= Abstract
+This study proposes a new architecture for text analysis.
+= Introduction
+AI-based recruitment has become the new standard."""
+    
+    res = apply_patches(source, patch)
+    assert "= Abstract" in res
+    assert "AI-based recruitment" in res
+    print("test_full_document_rewrite PASSED")
+
+def test_garbage_short_fallback():
+    source = """= Abstrak
+Penelitian ini mengusulkan arsitektur baru untuk analisis teks yang sangat panjang sekali dan memiliki banyak kalimat di dalamnya agar lolos batas pengecekan fifty characters."""
+    
+    # LLM outputs empty or very short conversational error
+    patch = "Error"
+    
+    res = apply_patches(source, patch)
+    assert res == source, "Expected fallback to original source on short garbage input"
+    print("test_garbage_short_fallback PASSED")
+
+if __name__ == "__main__":
+    test_targeted_edit()
+    test_empty_search_guard()
+    test_full_document_rewrite()
+    test_garbage_short_fallback()
+    print("\nALL TESTS PASSED SUCCESSFULLY!")

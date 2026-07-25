@@ -35,6 +35,9 @@ def robust_replace(source: str, search: str, replace: str) -> str:
     return source
 
 def apply_patches(source: str, patch_text: str) -> str:
+    if not patch_text or not patch_text.strip():
+        return source
+
     pattern = re.compile(r'<<<< SEARCH\s*\n(.*?)\n\s*====\s*\n(.*?)\n\s*>>>> REPLACE', re.DOTALL)
     new_source = source
     
@@ -49,10 +52,17 @@ def apply_patches(source: str, patch_text: str) -> str:
                 # Still broken, return original code rather than leaking tokens
                 return source
         else:
-            # Fallback: The LLM might have ignored the block format and just output the full file.
-            return patch_text
+            # Fallback: The LLM outputted the full file directly (Option 2: Full Document Rewrite).
+            # Guard against accidental empty or garbage replacement that would wipe the document.
+            cleaned = patch_text.strip()
+            if not cleaned or (len(cleaned) < 15 and len(source) > 50):
+                return source
+            return cleaned
         
     for search_text, replace_text in matches:
+        if not search_text.strip():
+            # Guard against empty SEARCH blocks which would corrupt string replacement
+            continue
         if search_text in new_source:
             new_source = new_source.replace(search_text, replace_text)
         else:
@@ -65,20 +75,26 @@ def apply_patches(source: str, patch_text: str) -> str:
 async def vibe_coding(request: VibeRequest):
     prompt = f"""You are an expert Typst coding assistant.
 The user has provided an instruction to modify their document.
-You must output ONLY Search/Replace blocks to implement the instruction.
-Use this format exactly:
 
+You have two ways to respond depending on the instruction:
+
+OPTION 1 - TARGETED EDITS (Preferred for most tasks):
+If the instruction applies to specific parts of the document (e.g. changing an abstract, editing a title, fixing a table, adding a section), output ONLY Search/Replace blocks:
 <<<< SEARCH
 Exact lines from the original file to replace
 ====
 The new lines to insert
 >>>> REPLACE
 
-CRITICAL RULES:
+OPTION 2 - FULL DOCUMENT REWRITE (Only for global tasks):
+If and ONLY if the instruction asks to transform, rewrite, or translate the ENTIRE document (e.g. "translate everything to English", "rewrite the whole document", "format the entire code"), DO NOT use Search/Replace blocks. Instead, output the complete, valid Typst code for the entire rewritten document directly enclosed in ```typst ... ``` code blocks.
+
+CRITICAL RULES FOR SEARCH/REPLACE BLOCKS:
 1. The SEARCH block MUST be an EXACT, literal substring of the original file.
 2. Include enough context (a few surrounding lines) so the SEARCH block is unique in the file.
 3. Preserve all original indentation and whitespace in the SEARCH block.
-4. You may output multiple blocks for multiple changes. DO NOT output any other text or markdown wrappers.
+4. Never use placeholders like "// rest of code" in SEARCH blocks.
+5. You may output multiple blocks for multiple changes. DO NOT output any other text or markdown wrappers.
 
 INSTRUCTION:
 {request.instruction}
@@ -93,7 +109,8 @@ CURRENT FILE CONTENT:
                 {"role": "system", "content": "You are a code patching engine."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.1
+            temperature=0.1,
+            max_tokens=8192
         )
         patch_text = response.choices[0].message.content.strip()
         
