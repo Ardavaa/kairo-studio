@@ -191,7 +191,7 @@ export default function ProjectWorkspacePage() {
           
           {/* Left Column (Projects) */}
           <div className="flex-1 min-w-0 flex flex-col gap-8">
-            <h1 className="text-[28px] md:text-[32px] font-bold text-gray-900 tracking-tight">Dashboard</h1>
+            <h1 className="font-serif text-[32px] md:text-[42px] leading-tight text-primary mb-2 md:mb-3">Dashboard</h1>
 
             {/* Create Cards */}
             <div className="flex flex-col sm:flex-row gap-4">
