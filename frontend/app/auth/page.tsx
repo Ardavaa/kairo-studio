@@ -2,11 +2,14 @@
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Mail, Lock, User, Eye, EyeOff, ArrowLeft,
   ShieldCheck
 } from "lucide-react";
+
+// API base URL - update this to your backend URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 function AuthFormContent() {
   const searchParams = useSearchParams();
@@ -27,25 +30,27 @@ function AuthFormContent() {
     }
   }, [searchParams]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
 
-    // Simulate authentication delay with smooth feedback
+    // For now, show a message that email/password auth is not yet implemented
+    // In a full implementation, this would call the backend API
     setTimeout(() => {
       setIsLoading(false);
-      // For demonstration, navigate to home on success
-      router.push("/");
-    }, 1200);
+      alert("Email/password authentication will be available in a future update. Please use Google Sign-in for now.");
+    }, 1000);
   };
 
   const handleSocialAuth = (provider: string) => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      router.push("/");
-    }, 1000);
+    if (provider === "Google") {
+      // Redirect to backend Google OAuth endpoint
+      window.location.href = `${API_BASE_URL}/auth/google`;
+    } else if (provider === "GitHub") {
+      // GitHub OAuth can be added similarly
+      alert("GitHub OAuth will be available in a future update.");
+    }
   };
 
   return (
