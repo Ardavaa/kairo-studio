@@ -7,10 +7,10 @@ import {
   Bold, Italic, Underline, Heading, List, ListOrdered, Sigma, Code, AtSign, MessageSquare,
   Undo, Redo, ZoomIn, ZoomOut, Maximize, GripVertical, Search, Book, PenTool, Settings, HelpCircle as HelpIcon, FileText,
   FolderPlus, FilePlus, Upload, Image as ImageIcon, Eye, MoreHorizontal, Trash2, Edit2, Folder,
-  ChevronRight, ChevronDown, AlertCircle
+  ChevronRight, ChevronDown, AlertCircle, CheckCircle
 } from "lucide-react";
 import Link from "next/link";
-import Editor from "@monaco-editor/react";
+import Editor, { DiffEditor } from "@monaco-editor/react";
 import { getTypstCompletions } from "@/utils/typst-completions";
 import { TypstLspClient } from "@/utils/lsp-client";
 
@@ -215,6 +215,13 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, fileName: string } | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
 
+  // Vibe Coding States
+  const [isVibeMode, setIsVibeMode] = useState(false);
+  const [vibeInput, setVibeInput] = useState("");
+  const [isGeneratingVibe, setIsGeneratingVibe] = useState(false);
+  const [proposedCode, setProposedCode] = useState<string | null>(null);
+  const [originalCodeForDiff, setOriginalCodeForDiff] = useState<string | null>(null);
+
   // Search & Replace
   const [searchQuery, setSearchQuery] = useState("");
   const [searchCaseSensitive, setSearchCaseSensitive] = useState(false);
@@ -408,6 +415,76 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
     window.addEventListener("click", handleClick);
     return () => window.removeEventListener("click", handleClick);
   }, []);
+
+  // Vibe Coding logic
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        e.stopPropagation(); // Stop Monaco from processing this
+        setIsVibeMode(prev => !prev);
+        if (!isVibeMode) {
+          // Reset when opening
+          setProposedCode(null);
+          setVibeInput("");
+        }
+      } else if (e.key === 'Escape' && isVibeMode) {
+        setIsVibeMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [isVibeMode]);
+
+  const handleVibeSubmit = async () => {
+    if (!vibeInput.trim() || isGeneratingVibe) return;
+    setIsGeneratingVibe(true);
+    setOriginalCodeForDiff(code);
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/editor/vibe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_code: code, instruction: vibeInput })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const newCode = data.proposed_code;
+        setProposedCode(newCode);
+        
+        // Auto-apply to editor immediately so the PDF preview updates!
+        setCode(newCode);
+        if (editorRef.current) {
+          editorRef.current.setValue(newCode);
+          if (globalLspClient) globalLspClient.didChange();
+        }
+      }
+    } catch (e) {
+      console.error("Vibe API error", e);
+    } finally {
+      setIsGeneratingVibe(false);
+    }
+  };
+
+  const handleKeepChanges = () => {
+    // Already applied to the hidden editor, just clear the diff state
+    setProposedCode(null);
+    setOriginalCodeForDiff(null);
+    setIsVibeMode(false);
+  };
+
+  const handleUndoChanges = () => {
+    // Revert the hidden editor to original code
+    if (originalCodeForDiff) {
+      setCode(originalCodeForDiff);
+      if (editorRef.current) {
+        editorRef.current.setValue(originalCodeForDiff);
+        if (globalLspClient) globalLspClient.didChange();
+      }
+    }
+    setProposedCode(null);
+    setOriginalCodeForDiff(null);
+    setIsVibeMode(false);
+  };
 
   // Fetch files and initial content on mount
   useEffect(() => {
@@ -1320,68 +1397,143 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                   <p className="mt-4 text-sm text-gray-500 font-medium">{activeFile}</p>
                 </div>
               ) : (
-                <Editor
-                  height="100%"
-                  path={activeFile}
-                  language={activeFile.endsWith('.bib') ? "bibtex" : "typst"}
-                  theme="kairo-light"
-                  defaultValue={code}
-                  onChange={(val) => {
-                    setCode(val || "");
-                    if (globalLspClient) {
-                      globalLspClient.didChange();
-                    }
-                  }}
-                  beforeMount={handleEditorWillMount}
-                  onMount={(editor, monaco) => { 
-                    editorRef.current = editor; 
-                    
-                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    const wsUrl = `${protocol}//localhost:8000/api/v1/ws/lsp/typst`;
-                    // Fix project root URI
-                    const rootUri = `file:///d:/dave-workspace/kairo-studio/frontend/.workspace/${id}`;
-                    const fileUri = `${rootUri}/${activeFile}`;
-                    
-                    if (globalLspClient) {
-                      globalLspClient.dispose();
-                    }
-                    
-                    // eslint-disable-next-line
-                    // @ts-ignore
-                    globalLspClient = new TypstLspClient(wsUrl, editor, monaco, fileUri, rootUri);
-                    globalLspClient.onDiagnostics = (diagnostics) => {
-                      const markers = diagnostics.map((d: any) => ({
-                        severity: d.severity === 1 ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
-                        startLineNumber: d.range.start.line + 1,
-                        startColumn: d.range.start.character + 1,
-                        endLineNumber: d.range.end.line + 1,
-                        endColumn: d.range.end.character + 1,
-                        message: d.message,
-                      }));
-                      monaco.editor.setModelMarkers(editor.getModel(), "typst", markers);
-                    };
-                    globalLspClient.connect().catch(console.error);
-                  }}
-                  options={{
-                    minimap: { enabled: false },
-                    lineNumbersMinChars: 3,
-                    fontSize: 14,
-                    fontFamily: "var(--font-mono), monospace",
-                    padding: { top: 24, bottom: 24 },
-                    scrollBeyondLastLine: false,
-                    wordWrap: "on",
-                    overviewRulerLanes: 0,
-                    hideCursorInOverviewRuler: true,
-                    renderLineHighlight: "none",
-                    scrollbar: {
-                      vertical: "hidden",
-                      horizontal: "hidden"
-                    },
-                    fixedOverflowWidgets: true
-                  }}
-                />
-              )}
+                <>
+                  {proposedCode && (
+                    <DiffEditor
+                      height="100%"
+                      language={activeFile.endsWith('.bib') ? "bibtex" : "typst"}
+                      theme="kairo-light"
+                      original={originalCodeForDiff || ""}
+                      modified={proposedCode}
+                      options={{
+                        renderSideBySide: false,
+                        readOnly: true,
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        fontFamily: "var(--font-mono), monospace",
+                        padding: { top: 24, bottom: 24 },
+                        wordWrap: "on",
+                        renderOverviewRuler: false,
+                        hideCursorInOverviewRuler: true
+                      }}
+                    />
+                  )}
+                  <div style={{ display: proposedCode ? 'none' : 'block', width: '100%', height: '100%' }}>
+                    <Editor
+                      height="100%"
+                      path={activeFile}
+                      language={activeFile.endsWith('.bib') ? "bibtex" : "typst"}
+                    theme="kairo-light"
+                    defaultValue={code}
+                    onChange={(val) => {
+                      setCode(val || "");
+                      if (globalLspClient) {
+                        globalLspClient.didChange();
+                      }
+                    }}
+                    beforeMount={handleEditorWillMount}
+                    onMount={(editor, monaco) => { 
+                      editorRef.current = editor; 
+                      
+                      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                      const wsUrl = `${protocol}//localhost:8000/api/v1/ws/lsp/typst`;
+                      // Fix project root URI
+                      const rootUri = `file:///d:/dave-workspace/kairo-studio/frontend/.workspace/${id}`;
+                      const fileUri = `${rootUri}/${activeFile}`;
+                      
+                      if (globalLspClient) {
+                        globalLspClient.dispose();
+                      }
+                      
+                      // eslint-disable-next-line
+                      // @ts-ignore
+                      globalLspClient = new TypstLspClient(wsUrl, editor, monaco, fileUri, rootUri);
+                      globalLspClient.onDiagnostics = (diagnostics) => {
+                        const markers = diagnostics.map((d: any) => ({
+                          severity: d.severity === 1 ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
+                          startLineNumber: d.range.start.line + 1,
+                          startColumn: d.range.start.character + 1,
+                          endLineNumber: d.range.end.line + 1,
+                          endColumn: d.range.end.character + 1,
+                          message: d.message,
+                        }));
+                        monaco.editor.setModelMarkers(editor.getModel(), "typst", markers);
+                      };
+                      globalLspClient.connect().catch(console.error);
+                    }}
+                    options={{
+                      minimap: { enabled: false },
+                      lineNumbersMinChars: 3,
+                      fontSize: 14,
+                      fontFamily: "var(--font-mono), monospace",
+                      padding: { top: 24, bottom: 24 },
+                      scrollBeyondLastLine: false,
+                      wordWrap: "on",
+                      overviewRulerLanes: 0,
+                      hideCursorInOverviewRuler: true,
+                      renderLineHighlight: "none",
+                      scrollbar: {
+                        vertical: "hidden",
+                        horizontal: "hidden"
+                      },
+                      fixedOverflowWidgets: true
+                    }}
+                  />
+                </div>
+              </>
+            )}
             </div>
+
+            {/* Vibe Coding UI Floating Panel */}
+            {isVibeMode && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-3/4 max-w-2xl z-40">
+                {proposedCode ? (
+                  <div className="bg-white border border-gray-200 shadow-xl rounded-md overflow-hidden text-gray-800 text-sm">
+                    <div className="flex items-center justify-between p-3 border-b border-gray-100 bg-gray-50/80 backdrop-blur">
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-gray-900 flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-600" /> Review Changes
+                        </span>
+                        <span className="text-gray-500 text-xs">AI proposed</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button onClick={handleUndoChanges} className="px-3 py-1 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">Discard</button>
+                        <button onClick={handleKeepChanges} className="px-3 py-1 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">Accept</button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-gray-200 shadow-2xl rounded-xl p-2 flex items-center gap-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={vibeInput}
+                      onChange={e => setVibeInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleVibeSubmit();
+                        if (e.key === 'Escape') setIsVibeMode(false);
+                      }}
+                      placeholder="Ask anything..."
+                      className="flex-1 bg-transparent text-gray-900 placeholder-gray-400 border-none outline-none px-3 py-2 text-sm"
+                      disabled={isGeneratingVibe}
+                    />
+                    <button 
+                      onClick={handleVibeSubmit}
+                      disabled={isGeneratingVibe || !vibeInput.trim()}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:bg-gray-300 disabled:text-gray-500 transition-colors"
+                    >
+                      {isGeneratingVibe ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            
+
 
           </Panel>
 
