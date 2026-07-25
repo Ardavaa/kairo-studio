@@ -1357,7 +1357,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
         <PanelGroup orientation="horizontal" className="flex-1">
           
           {/* Editor Panel */}
-          <Panel defaultSize={50} minSize={20} className="flex flex-col bg-[#FDFDFD]">
+          <Panel defaultSize={50} minSize={20} className="flex flex-col bg-[#FDFDFD] relative">
             
             {/* Formatting Toolbar */}
             <div className="h-[44px] border-b border-gray-200/80 flex items-center justify-between px-2 shrink-0 overflow-x-auto bg-white">
@@ -1486,7 +1486,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
 
             {/* Vibe Coding UI Floating Panel */}
             {isVibeMode && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-3/4 max-w-2xl z-40">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[85%] max-w-2xl z-40">
                 {proposedCode ? (
                   <div className="bg-white border border-gray-200 shadow-xl rounded-md overflow-hidden text-gray-800 text-sm">
                     <div className="flex items-center justify-between p-3 border-b border-gray-100 bg-gray-50/80 backdrop-blur">

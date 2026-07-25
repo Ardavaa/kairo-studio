@@ -45,9 +45,34 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const title = body.title || "Untitled Document";
     const template = body.template || "default";
+    const duplicateFrom = body.duplicateFrom;
 
     const projects = await getDb();
     const newId = `proj_${Date.now()}`;
+
+    if (duplicateFrom) {
+      const origIndex = projects.findIndex((p: any) => p.id === duplicateFrom);
+      if (origIndex === -1) {
+        return NextResponse.json({ error: "Source project not found" }, { status: 404 });
+      }
+      const origProject = projects[origIndex];
+      const newProject = {
+        ...origProject,
+        id: newId,
+        title: title,
+        updated: new Date().toISOString(),
+      };
+      projects.splice(origIndex + 1, 0, newProject);
+      await saveDb(projects);
+
+      const workspaceDir = path.join(process.cwd(), ".workspace", newId);
+      const sourceDir = path.join(process.cwd(), ".workspace", duplicateFrom);
+      await fs.mkdir(workspaceDir, { recursive: true });
+      await fs.cp(sourceDir, workspaceDir, { recursive: true });
+
+      return NextResponse.json(newProject);
+    }
+
     const newProject = {
       id: newId,
       title: title,

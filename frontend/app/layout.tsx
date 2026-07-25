@@ -8,6 +8,11 @@ const sourceSerif = Source_Serif_4({ subsets: ["latin"], variable: "--font-sourc
 export const metadata: Metadata = {
   title: "Kairo Studio",
   description: "Discover and analyze world-class research",
+  icons: {
+    icon: "/kairo-logo-compact.svg",
+    shortcut: "/kairo-logo-compact.svg",
+    apple: "/kairo-logo-compact.svg",
+  },
 };
 
 import Sidebar from "@/components/Sidebar";

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Plus, Folder, File, MoreVertical, Edit2, Trash2, Search, X } from "lucide-react";
+import { Plus, Folder, File, MoreVertical, Edit2, Trash2, Search, X, Copy } from "lucide-react";
 import {
   ChevronDown, LayoutGrid, List, BookOpen, LayoutTemplate, FolderPlus,
   MessageSquare, Compass, Cloud, FileText,
@@ -126,6 +126,47 @@ export default function ProjectWorkspacePage() {
       setProjects(prev => prev.map(p => p.id === id ? updated : p));
     }
     setEditingId(null);
+  };
+
+  const handleDuplicateClick = async (id: string) => {
+    const originalProject = projects.find(p => p.id === id);
+    if (!originalProject) return;
+
+    const existingTitles = projects.map(p => p.title);
+    const match = originalProject.title.match(/^(.*?)\s+\((\d+)\)$/);
+    const baseTitle = match && match[1] ? match[1] : originalProject.title;
+
+    let counter = 1;
+    let newTitle = `${baseTitle} (${counter})`;
+    while (existingTitles.includes(newTitle)) {
+      counter++;
+      newTitle = `${baseTitle} (${counter})`;
+    }
+
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTitle,
+          duplicateFrom: id
+        })
+      });
+      if (res.ok) {
+        const duplicatedProject = await res.json();
+        setProjects(prev => {
+          const idx = prev.findIndex(p => p.id === id);
+          if (idx !== -1) {
+            const next = [...prev];
+            next.splice(idx + 1, 0, duplicatedProject);
+            return next;
+          }
+          return [...prev, duplicatedProject];
+        });
+      }
+    } catch (e) {
+      console.error("Error duplicating project:", e);
+    }
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -349,8 +390,8 @@ export default function ProjectWorkspacePage() {
 
             {contextMenu && (
               <div 
-                className="fixed z-50 bg-white border border-gray-200 shadow-lg rounded-md py-1 w-32 flex flex-col"
-                style={{ top: contextMenu.y, left: contextMenu.x - 128 }}
+                className="fixed z-50 bg-white border border-gray-200 shadow-lg rounded-md py-1 w-36 flex flex-col"
+                style={{ top: contextMenu.y, left: contextMenu.x - 144 }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <button 
@@ -365,6 +406,15 @@ export default function ProjectWorkspacePage() {
                   }}
                 >
                   <Edit2 className="w-3.5 h-3.5" /> Rename
+                </button>
+                <button 
+                  className="px-4 py-1.5 text-[13px] text-gray-700 hover:bg-blue-50 hover:text-blue-600 text-left flex items-center gap-2"
+                  onClick={() => {
+                    handleDuplicateClick(contextMenu.id);
+                    setContextMenu(null);
+                  }}
+                >
+                  <Copy className="w-3.5 h-3.5" /> Duplicate
                 </button>
                 <button 
                   className="px-4 py-1.5 text-[13px] text-red-600 hover:bg-red-50 text-left flex items-center gap-2"
