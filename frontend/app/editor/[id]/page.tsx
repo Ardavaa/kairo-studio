@@ -501,8 +501,8 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
         setProposedCode(newCode);
         
         // Calculate diff stats
-        const origLines = code.split('\n');
-        const newLines = newCode.split('\n');
+        const origLines = code.replace(/\r\n/g, '\n').split('\n').map((l: string) => l.trimRight());
+        const newLines = newCode.replace(/\r\n/g, '\n').split('\n').map((l: string) => l.trimRight());
         const origSet = new Set(origLines);
         const newSet = new Set(newLines);
         let added = 0, removed = 0;
@@ -899,6 +899,79 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
 
     return () => clearTimeout(timer);
   }, [code]);
+
+  // Global capture-phase keydown listener for Ctrl+L / Cmd+L / Ctrl+/ / Cmd+/ line commenting
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'L' || e.code === 'KeyL' || e.key === '/')) {
+        const ed = editorRef.current;
+        if (!ed || !ed.getModel()) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const selection = ed.getSelection();
+        if (!selection) return;
+
+        const model = ed.getModel();
+        const startLine = selection.startLineNumber;
+        const endLine = selection.endLineNumber;
+        const langId = model.getLanguageId ? model.getLanguageId() : (activeFile.endsWith('.bib') ? 'bibtex' : 'typst');
+        const commentSymbol = langId === 'bibtex' ? '%' : '//';
+
+        let allCommented = true;
+        const linesToEdit: { lineNumber: number; text: string; commented: boolean }[] = [];
+
+        for (let lineNumber = startLine; lineNumber <= endLine; lineNumber++) {
+          const lineContent = model.getLineContent(lineNumber);
+          const trimmed = lineContent.trimStart();
+          const isCommented = trimmed.startsWith(commentSymbol);
+          if (!isCommented && trimmed.length > 0) {
+            allCommented = false;
+          }
+          linesToEdit.push({ lineNumber, text: lineContent, commented: isCommented });
+        }
+
+        const edits: any[] = [];
+
+        for (const item of linesToEdit) {
+          const { lineNumber, text } = item;
+          if (text.trim().length === 0) continue;
+
+          if (allCommented) {
+            const idx = text.indexOf(commentSymbol);
+            if (idx !== -1) {
+              let removeLen = commentSymbol.length;
+              if (text[idx + removeLen] === ' ') {
+                removeLen += 1;
+              }
+              edits.push({
+                range: { startLineNumber: lineNumber, startColumn: idx + 1, endLineNumber: lineNumber, endColumn: idx + 1 + removeLen },
+                text: ''
+              });
+            }
+          } else {
+            const leadingSpaceMatch = text.match(/^\s*/);
+            const indentLen = leadingSpaceMatch ? leadingSpaceMatch[0].length : 0;
+            edits.push({
+              range: { startLineNumber: lineNumber, startColumn: indentLen + 1, endLineNumber: lineNumber, endColumn: indentLen + 1 },
+              text: `${commentSymbol} `
+            });
+          }
+        }
+
+        if (edits.length > 0) {
+          ed.pushUndoStop();
+          ed.executeEdits('toggle-comment-global', edits);
+          ed.pushUndoStop();
+          ed.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown, true);
+  }, [activeFile]);
 
   const toggleFolder = (folderName: string) => {
     setCollapsedFolders(prev => {
@@ -1489,8 +1562,8 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                       height="100%"
                       language={activeFile.endsWith('.bib') ? "bibtex" : "typst"}
                       theme="kairo-light"
-                      original={originalCodeForDiff || ""}
-                      modified={proposedCode}
+                      original={(originalCodeForDiff || "").replace(/\r\n/g, '\n')}
+                      modified={(proposedCode || "").replace(/\r\n/g, '\n')}
                       options={{
                         renderSideBySide: false,
                         readOnly: true,
@@ -1500,7 +1573,8 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                         padding: { top: 24, bottom: 24 },
                         wordWrap: "on",
                         renderOverviewRuler: false,
-                        hideCursorInOverviewRuler: true
+                        hideCursorInOverviewRuler: true,
+                        ignoreTrimWhitespace: true
                       }}
                     />
                   )}

@@ -64,9 +64,72 @@ Penelitian ini mengusulkan arsitektur baru untuk analisis teks yang sangat panja
     assert res == source, "Expected fallback to original source on short garbage input"
     print("test_garbage_short_fallback PASSED")
 
+def test_anchor_replace_with_skipped_middle_lines():
+    source = """== Bab 3
+Baris pertama bab 3 yang sangat penting.
+Baris kedua berisi penjelasan metodologi riset.
+Baris ketiga berisi dataset dan pengumpulan data.
+Baris keempat membahas analisis statistik.
+Baris kelima adalah kesimpulan sementara bab 3.
+Baris keenam penutup subbab."""
+    
+    # LLM skipped middle lines with "// ... skipped ..."
+    patch = """<<<< SEARCH
+== Bab 3
+Baris pertama bab 3 yang sangat penting.
+Baris kedua berisi penjelasan metodologi riset.
+// ... skipped ...
+Baris kelima adalah kesimpulan sementara bab 3.
+Baris keenam penutup subbab.
+====
+== Chapter 3
+First line of chapter 3 translated to English.
+Second line containing research methodology.
+Third line on dataset and data collection.
+Fourth line on statistical analysis.
+Fifth line temporary conclusion of chapter 3.
+Sixth line closing subsection.
+>>>> REPLACE"""
+    
+    res = apply_patches(source, patch)
+    assert "== Chapter 3" in res
+    assert "First line of chapter 3 translated to English" in res
+    assert "Sixth line closing subsection." in res
+    print("test_anchor_replace_with_skipped_middle_lines PASSED")
+
+def test_fuzzy_replace_with_minor_typo_or_whitespace():
+    source = """= Pendahuluan
+Dalam era digitalisasi saat ini, penerapan teknologi artificial intelligence telah merambah ke berbagai sektor kehidupan termasuk rekrutmen sumber daya manusia secara otomatis dan skalabel."""
+    
+    # LLM has minor word difference / line break drift in SEARCH block
+    patch = """<<<< SEARCH
+= Pendahuluan
+Dalam era digitalisasi saat ini penerapan teknologi artificial intelligence telah merambah ke berbagai sektor kehidupan termasuk rekrutmen sumber daya manusia.
+====
+= Introduction
+In the current era of digitalization, the application of artificial intelligence technology has penetrated various sectors of life including automated human resource recruitment.
+>>>> REPLACE"""
+    
+    res = apply_patches(source, patch)
+    assert "= Introduction" in res
+    assert "automated human resource recruitment" in res
+    print("test_fuzzy_replace_with_minor_typo_or_whitespace PASSED")
+
+def test_line_ending_normalization():
+    source = "= Abstract\r\nThis is a test document with Windows line endings.\r\nIt has multiple lines.\r\n"
+    patch = "<<<< SEARCH\n= Abstract\nThis is a test document with Windows line endings.\n====\n= Abstract\nThis is an upgraded document with Unix line endings.\n>>>> REPLACE"
+    
+    res = apply_patches(source, patch)
+    assert "upgraded document with Unix line endings" in res
+    print("test_line_ending_normalization PASSED")
+
 if __name__ == "__main__":
     test_targeted_edit()
     test_empty_search_guard()
     test_full_document_rewrite()
     test_garbage_short_fallback()
+    test_anchor_replace_with_skipped_middle_lines()
+    test_fuzzy_replace_with_minor_typo_or_whitespace()
+    test_line_ending_normalization()
     print("\nALL TESTS PASSED SUCCESSFULLY!")
+
