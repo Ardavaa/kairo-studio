@@ -5,13 +5,15 @@ export class TypstLspClient {
   private editor: any;
   private monaco: any;
   private fileUri: string;
+  private rootUri: string;
   private documentVersion = 1;
   public onDiagnostics?: (diagnostics: any[]) => void;
 
-  constructor(private url: string, editor: any, monaco: any, fileUri: string) {
+  constructor(private url: string, editor: any, monaco: any, fileUri: string, rootUri: string) {
     this.editor = editor;
     this.monaco = monaco;
     this.fileUri = fileUri;
+    this.rootUri = rootUri;
   }
 
   public connect(): Promise<void> {
@@ -87,7 +89,11 @@ export class TypstLspClient {
   private async initialize() {
     return this.sendRequest("initialize", {
       processId: null,
-      rootUri: null, // "file:///workspace" usually, we can keep it simple
+      rootUri: this.rootUri,
+      workspaceFolders: [{
+        uri: this.rootUri,
+        name: "workspace"
+      }],
       capabilities: {
         textDocument: {
           completion: {
@@ -122,26 +128,63 @@ export class TypstLspClient {
   }
 
   public didChange() {
-    this.documentVersion++;
+    if (!this.initialized || !this.editor) return;
+
+    const content = this.editor.getValue();
     this.sendNotification("textDocument/didChange", {
       textDocument: {
         uri: this.fileUri,
-        version: this.documentVersion
+        version: ++this.documentVersion
       },
       contentChanges: [{
-        text: this.editor.getValue()
+        text: content
       }]
     });
   }
 
-  public async getCompletions(position: any) {
-    const response = await this.sendRequest("textDocument/completion", {
+  public openFile(newFileUri: string, content: string) {
+    if (!this.initialized) {
+      this.fileUri = newFileUri; // will be opened on initialize
+      return;
+    }
+
+    // Close old
+    this.sendNotification("textDocument/didClose", {
+      textDocument: {
+        uri: this.fileUri
+      }
+    });
+
+    this.fileUri = newFileUri;
+    this.documentVersion = 1;
+
+    // Open new
+    this.sendNotification("textDocument/didOpen", {
+      textDocument: {
+        uri: this.fileUri,
+        languageId: newFileUri.endsWith('.bib') ? 'bibtex' : 'typst',
+        version: this.documentVersion,
+        text: content
+      }
+    });
+  }
+
+  public async getCompletions(position: any, context?: any) {
+    const params: any = {
       textDocument: { uri: this.fileUri },
       position: {
         line: position.lineNumber - 1,
         character: position.column - 1
       }
-    });
+    };
+    if (context) {
+      params.context = {
+        // Monaco triggerKind is 0-indexed (0=Invoke, 1=TriggerCharacter), LSP is 1-indexed (1=Invoked, 2=TriggerCharacter)
+        triggerKind: (context.triggerKind || 0) + 1,
+        triggerCharacter: context.triggerCharacter
+      };
+    }
+    const response = await this.sendRequest("textDocument/completion", params);
     return response;
   }
 

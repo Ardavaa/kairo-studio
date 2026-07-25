@@ -97,7 +97,7 @@ function handleEditorWillMount(monaco: any) {
 
     monaco.languages.registerCompletionItemProvider("typst", {
       triggerCharacters: ['#', '@', '<', '.', '/', ':'],
-      provideCompletionItems: async (model: any, position: any) => {
+      provideCompletionItems: async (model: any, position: any, context: any) => {
         const word = model.getWordUntilPosition(position);
         const range = {
           startLineNumber: position.lineNumber,
@@ -106,11 +106,15 @@ function handleEditorWillMount(monaco: any) {
           endColumn: word.endColumn
         };
 
-        let suggestions: any[] = getTypstCompletions(monaco, range);
+        const lineContent = model.getLineContent(position.lineNumber);
+        const textBeforeCursor = lineContent.substring(0, position.column - 1);
+        const isReference = /@[\w-]*$/.test(textBeforeCursor) || context?.triggerCharacter === '@';
+
+        let suggestions: any[] = isReference ? [] : getTypstCompletions(monaco, range);
         
         if (globalLspClient) {
           try {
-            const lspCompletions = await globalLspClient.getCompletions(position);
+            const lspCompletions = await globalLspClient.getCompletions(position, context);
             if (lspCompletions && lspCompletions.items) {
               const lspSuggestions = lspCompletions.items.map((item: any) => ({
                 label: item.label,
@@ -382,6 +386,9 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
               setCode(text);
               if (editorRef.current) {
                 editorRef.current.setValue(text);
+                if (globalLspClient) {
+                  globalLspClient.openFile(`file:///d:/dave-workspace/kairo-studio/frontend/.workspace/${id}/${activeFile}`, text);
+                }
               }
             }
           });
@@ -419,6 +426,15 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
       .then(text => {
         if (typeof text === 'string') {
           setCode(text);
+          // Small delay to allow editor to mount
+          setTimeout(() => {
+            if (editorRef.current) {
+              editorRef.current.setValue(text);
+              if (globalLspClient) {
+                globalLspClient.openFile(`file:///d:/dave-workspace/kairo-studio/frontend/.workspace/${id}/${activeFile}`, text);
+              }
+            }
+          }, 100);
         }
       })
       .catch(console.error);
@@ -525,6 +541,9 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
             setCode(text);
             if (editorRef.current) {
               editorRef.current.setValue(text);
+              if (globalLspClient) {
+                globalLspClient.openFile(`file:///d:/dave-workspace/kairo-studio/frontend/.workspace/${id}/${fileName}`, text);
+              }
             }
           }
         }
@@ -1306,7 +1325,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                   path={activeFile}
                   language={activeFile.endsWith('.bib') ? "bibtex" : "typst"}
                   theme="kairo-light"
-                  value={code}
+                  defaultValue={code}
                   onChange={(val) => {
                     setCode(val || "");
                     if (globalLspClient) {
@@ -1320,7 +1339,8 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                     const wsUrl = `${protocol}//localhost:8000/api/v1/ws/lsp/typst`;
                     // Fix project root URI
-                    const projectUri = `file:///d:/dave-workspace/kairo-studio/frontend/proj_${id}/${activeFile}`;
+                    const rootUri = `file:///d:/dave-workspace/kairo-studio/frontend/.workspace/${id}`;
+                    const fileUri = `${rootUri}/${activeFile}`;
                     
                     if (globalLspClient) {
                       globalLspClient.dispose();
@@ -1328,7 +1348,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                     
                     // eslint-disable-next-line
                     // @ts-ignore
-                    globalLspClient = new TypstLspClient(wsUrl, editor, monaco, projectUri);
+                    globalLspClient = new TypstLspClient(wsUrl, editor, monaco, fileUri, rootUri);
                     globalLspClient.onDiagnostics = (diagnostics) => {
                       const markers = diagnostics.map((d: any) => ({
                         severity: d.severity === 1 ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
