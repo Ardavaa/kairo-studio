@@ -1376,7 +1376,8 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                     scrollbar: {
                       vertical: "hidden",
                       horizontal: "hidden"
-                    }
+                    },
+                    fixedOverflowWidgets: true
                   }}
                 />
               )}
