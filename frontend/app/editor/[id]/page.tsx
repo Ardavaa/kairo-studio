@@ -1076,9 +1076,9 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
         </div>
 
         {activeTab && (
-          <div className="w-[260px] bg-[#FDFDFD] border-r border-gray-200 flex flex-col shrink-0 shadow-[2px_0_15px_rgba(0,0,0,0.03)] z-10">
+          <div className="w-[260px] bg-[#FDFDFD] border-r border-gray-200 flex flex-col shrink-0 shadow-[2px_0_15px_rgba(0,0,0,0.03)] z-10 animate-fade-in">
             {activeTab === 'files' && (
-              <div className="p-4 flex flex-col h-full overflow-hidden">
+              <div className="p-4 flex flex-col h-full overflow-hidden animate-fade-in">
                 <div className="h-[52px] flex items-center justify-between shrink-0">
                   <h2 className="font-bold text-gray-900 text-[15px]">Files</h2>
                   <div className="flex items-center gap-1.5">
@@ -1113,7 +1113,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                   onDrop={handleRootDrop}
                 >
                   {creatingItem && (
-                    <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-y border-blue-100">
+                    <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-y border-blue-100 animate-scale-fade-in">
                       {creatingItem === 'folder' ? (
                         <Folder className="w-4 h-4 text-blue-500 shrink-0 fill-blue-100" strokeWidth={1.5} />
                       ) : (
@@ -1298,7 +1298,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
             )}
             
             {activeTab === 'search' && (
-              <div className="p-4 flex flex-col h-full overflow-hidden">
+              <div className="p-4 flex flex-col h-full overflow-hidden animate-fade-in">
                 <div className="h-[44px] flex items-center shrink-0 mt-2 mb-2">
                   <h2 className="font-bold text-gray-900 text-[15px]">Search & Replace</h2>
                 </div>
@@ -1409,7 +1409,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
             )}
             
             {activeTab === 'outline' && (
-              <div className="p-4 flex flex-col h-full overflow-hidden">
+              <div className="p-4 flex flex-col h-full overflow-hidden animate-fade-in">
                 <div className="h-[44px] flex items-center justify-between shrink-0 mt-2 mb-2">
                   <h2 className="font-bold text-gray-900 text-[15px]">Outline</h2>
                   <div className="flex items-center border border-gray-300/80 rounded-[4px] overflow-hidden bg-white shadow-sm">
@@ -1466,7 +1466,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
             )}
 
             {activeTab === 'errors' && (
-              <div className="p-4 flex flex-col h-full overflow-hidden">
+              <div className="p-4 flex flex-col h-full overflow-hidden animate-fade-in">
                 <div className="h-[52px] flex items-center shrink-0">
                   <h2 className="font-bold text-gray-900 text-[15px]">Problems</h2>
                 </div>
@@ -1574,7 +1574,9 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                         wordWrap: "on",
                         renderOverviewRuler: false,
                         hideCursorInOverviewRuler: true,
-                        ignoreTrimWhitespace: true
+                        ignoreTrimWhitespace: true,
+                        cursorSmoothCaretAnimation: "explicit",
+                        cursorBlinking: "smooth"
                       }}
                     />
                   )}
@@ -1636,7 +1638,10 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                         vertical: "hidden",
                         horizontal: "hidden"
                       },
-                      fixedOverflowWidgets: true
+                      fixedOverflowWidgets: true,
+                      cursorSmoothCaretAnimation: "explicit",
+                      cursorBlinking: "smooth",
+                      foldingHighlight: true
                     }}
                   />
                 </div>
