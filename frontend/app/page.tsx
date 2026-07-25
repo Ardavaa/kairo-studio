@@ -12,6 +12,7 @@ import {
   LineChart, Network, Landmark, X
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Page() {
   return (
@@ -35,9 +36,9 @@ export default function Page() {
             <a href="#" className="flex items-center gap-2 hover:text-accent transition-colors">
               <Bookmark className="w-4 h-4" /> My Library
             </a>
-            <button className="px-5 py-2 text-accent border border-soft-border rounded hover:bg-accent/5 hover:border-accent transition-all bg-paper-white">
+            <Link href="/auth?mode=signin" className="px-5 py-2 text-accent border border-soft-border rounded hover:bg-accent/5 hover:border-accent transition-all bg-paper-white block text-center">
               Sign in
-            </button>
+            </Link>
           </div>
         </header>
         <div className="h-px bg-soft-border absolute top-[72px] left-0 right-0 z-20 hidden md:block"></div>

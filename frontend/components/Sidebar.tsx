@@ -17,6 +17,10 @@ function cn(...inputs: ClassValue[]) {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  if (pathname?.startsWith("/auth")) {
+    return null;
+  }
+
   const [showEnhanceCard, setShowEnhanceCard] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -245,12 +249,12 @@ export default function Sidebar() {
               Create an account to save papers, organize projects, and get personalized recommendations.
             </p>
             <div className="flex flex-col gap-2">
-              <button className="w-full bg-accent text-white rounded-lg py-2.5 text-sm font-medium hover:bg-accent/90 transition-colors shadow-sm">
+              <Link href="/auth?mode=signup" className="w-full bg-accent text-white rounded-lg py-2.5 text-sm font-medium hover:bg-accent/90 transition-colors shadow-sm block text-center">
                 Create free account
-              </button>
-              <button className="w-full text-accent rounded-lg py-2.5 text-sm font-medium hover:bg-accent/5 transition-colors">
+              </Link>
+              <Link href="/auth?mode=signin" className="w-full text-accent rounded-lg py-2.5 text-sm font-medium hover:bg-accent/5 transition-colors block text-center">
                 Sign in
-              </button>
+              </Link>
             </div>
           </div>
         </div>
