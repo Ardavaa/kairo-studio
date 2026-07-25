@@ -448,7 +448,7 @@ export default function GradientChatInput({
 
       {/* the input card */}
       <div className="shrink-0 w-full max-w-[800px] mx-auto px-4 pb-8 pt-2">
-        <div className="relative rounded-[24px] border border-soft-border bg-paper-white shadow-md">
+        <div className="relative rounded-[24px] border border-soft-border bg-paper-white shadow-md transition-[box-shadow,border-color] duration-200 ease-out focus-within:border-primary/40 focus-within:shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
           <div className="relative z-[2] flex flex-col gap-2 rounded-[20px] bg-paper-white p-3">
             <textarea
               value={value}
@@ -467,7 +467,7 @@ export default function GradientChatInput({
               placeholder={animatedPlaceholder}
               aria-label="Message"
               rows={1}
-              className="h-auto w-full resize-none border-none outline-none focus:outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent px-2 py-2 text-[15px] text-primary shadow-none placeholder:text-muted/70 no-scrollbar"
+              className="h-auto w-full resize-none border-none outline-none focus:outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent px-2 py-2 text-[15px] text-primary shadow-none placeholder:text-muted/70 no-scrollbar transition-[height] duration-100 ease-out"
               style={{ minHeight: "40px", maxHeight: "200px" }}
             />
             
@@ -519,18 +519,20 @@ export default function GradientChatInput({
                 </div>
                 
                 {hasText ? (
-                  <Button
-                    type="button"
-                    onClick={() => handleSend()}
-                    onMouseDown={(e) => e.preventDefault()}
-                    size="icon"
-                    aria-label="Send message"
-                    className="size-10 shrink-0 rounded-full bg-accent hover:bg-accent/90 text-white shadow-sm transition-all active:scale-95"
-                  >
-                    <Send className="size-4" strokeWidth={2} />
-                  </Button>
+                  <div className="animate-scale-fade-in">
+                    <Button
+                      type="button"
+                      onClick={() => handleSend()}
+                      onMouseDown={(e) => e.preventDefault()}
+                      size="icon"
+                      aria-label="Send message"
+                      className="size-10 shrink-0 rounded-full bg-accent hover:bg-accent/90 text-white shadow-sm transition-all duration-150 active:scale-95"
+                    >
+                      <Send className="size-4" strokeWidth={2} />
+                    </Button>
+                  </div>
                 ) : (
-                  <>
+                  <div className="flex items-center gap-1 animate-fade-in">
                     <Button
                       type="button"
                       variant="ghost"
@@ -549,7 +551,7 @@ export default function GradientChatInput({
                     >
                       <AudioLines className="size-5" strokeWidth={1.5} />
                     </Button>
-                  </>
+                  </div>
                 )}
               </div>
             </div>

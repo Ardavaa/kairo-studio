@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.core.llm import llm_client
+from app.core.config import settings
 import re
 import difflib
 
@@ -9,10 +10,11 @@ router = APIRouter()
 class VibeRequest(BaseModel):
     current_code: str
     instruction: str
-    model: str = "deepseek-v4-flash"
+    model: str = settings.DATABYTE_MODEL
 
 class VibeResponse(BaseModel):
     proposed_code: str
+    status: str = "success"
 
 def robust_replace(source: str, search: str, replace: str) -> str:
     # Normalize whitespace for finding
@@ -125,7 +127,9 @@ def apply_patches(source: str, patch_text: str) -> str:
         else:
             # Fallback: The LLM outputted the full file directly (Option 2: Full Document Rewrite).
             cleaned = patch_text.strip()
-            if not cleaned or (len(cleaned) < 15 and len(source) > 50):
+            # Safety check: if original file is large (>200 chars) and new text is less than 40% of original size,
+            # or if it doesn't look like valid Typst code, do NOT wipe out the entire document!
+            if not cleaned or (len(source) > 200 and len(cleaned) < len(source) * 0.4):
                 return source
             return cleaned
         
@@ -167,25 +171,21 @@ async def vibe_coding(request: VibeRequest):
     prompt = f"""You are an expert Typst coding assistant.
 The user has provided an instruction to modify their document.
 
-You have two ways to respond depending on the instruction:
+You MUST output your changes using precise Search/Replace blocks:
 
-OPTION 1 - TARGETED EDITS (Preferred for most tasks):
-If the instruction applies to specific parts of the document (e.g. changing a section, translating a chapter, editing a title, fixing a table, adding a paragraph), output ONLY Search/Replace blocks:
 <<<< SEARCH
 Exact lines from the original file to replace
 ====
 The new lines to insert
 >>>> REPLACE
 
-OPTION 2 - FULL DOCUMENT REWRITE (Only for global tasks):
-If and ONLY if the instruction asks to transform, rewrite, or translate the ENTIRE document from beginning to end (e.g. "translate everything to English", "rewrite the whole document", "format the entire code"), DO NOT use Search/Replace blocks. Instead, output the complete, valid Typst code for the entire rewritten document directly enclosed in ```typst ... ``` code blocks.
-
 CRITICAL RULES FOR SEARCH/REPLACE BLOCKS:
-1. The SEARCH block MUST be an EXACT, literal substring of the original file.
-2. Include enough context (a few surrounding lines) so the SEARCH block is unique in the file.
+1. The SEARCH block MUST be an EXACT, literal substring of the original file. Copy and paste the exact lines from CURRENT FILE CONTENT.
+2. Include enough context (2-3 surrounding lines) so the SEARCH block is unique in the file.
 3. Preserve all original indentation and whitespace in the SEARCH block.
-4. Never use placeholders like "// rest of code" in SEARCH blocks. If you are modifying a large section (like a chapter), break it down into multiple smaller, precise SEARCH/REPLACE blocks (e.g. paragraph by paragraph or subsection by subsection) rather than one giant block.
-5. You may output multiple blocks for multiple changes. DO NOT output any other text or markdown wrappers.
+4. Never use placeholders like "// rest of code" in SEARCH or REPLACE blocks.
+5. If you are modifying a large section (like translating or rewriting a chapter/paragraph), break it down into multiple smaller, precise SEARCH/REPLACE blocks (e.g. paragraph by paragraph or heading by heading) rather than replacing the whole document.
+6. Only output the whole file directly without SEARCH/REPLACE blocks if the instruction explicitly commands to rewrite or translate the entire document from start to end.
 
 INSTRUCTION:
 {request.instruction}
@@ -215,8 +215,7 @@ CURRENT FILE CONTENT:
         proposed_code = apply_patches(request.current_code, patch_text)
         
         # If the patching failed (e.g., search text not found), we fallback to original or let user know
-        # But for now, we just return the best effort.
-        return VibeResponse(proposed_code=proposed_code)
+        return VibeResponse(proposed_code=proposed_code, status="success")
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

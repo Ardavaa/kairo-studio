@@ -498,6 +498,18 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
       if (res.ok) {
         const data = await res.json();
         const newCode = data.proposed_code;
+        
+        if (newCode === code || !newCode) {
+          setVibeMessages(prev => prev.map(msg => msg.id === aiMsgId ? {
+            ...msg,
+            content: `AI telah memproses perintah Anda, namun tidak menemukan bagian teks/kode yang cocok untuk diubah. Cobalah memberikan perintah yang lebih spesifik atau jelaskan bagian dokumen mana yang ingin diedit.`,
+            status: 'done',
+            diffStats: { added: 0, removed: 0 }
+          } : msg));
+          setIsGeneratingVibe(false);
+          return;
+        }
+
         setProposedCode(newCode);
         
         // Calculate diff stats
@@ -1652,12 +1664,12 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
             {/* Vibe Coding UI Floating Panel (Academic & Minimal per DESIGN_SYSTEM.md) */}
             {isVibeMode && (
               <div 
-                className="absolute inset-x-4 bottom-4 z-40 transition-all duration-150"
+                className="absolute inset-x-4 bottom-4 z-40 animate-scale-fade-in transition-[height] duration-150 ease-out"
                 style={ (vibeMessages.length > 0 || isGeneratingVibe || proposedCode) ? { height: `${vibePanelHeight}px` } : undefined }
               >
                 {(vibeMessages.length > 0 || isGeneratingVibe || proposedCode) ? (
                   <div 
-                    className="bg-white border border-[#E8E5E0] rounded-[12px] overflow-hidden flex flex-col h-full text-[#1D1D1F] text-sm"
+                    className="bg-white border border-[#E8E5E0] rounded-[12px] overflow-hidden flex flex-col h-full text-[#1D1D1F] text-sm animate-fade-in"
                     style={{ boxShadow: '0 6px 20px rgba(0,0,0,.08)' }}
                   >
                     {/* Top Resize Handle & Quiet Header (No logos, no title per user request) */}
@@ -1692,7 +1704,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                     {/* Scrollable Conversation History (White background per user request) */}
                     <div ref={vibeChatScrollRef} className="flex-1 overflow-y-auto p-5 space-y-5 min-h-0 bg-white">
                       {vibeMessages.map((msg) => (
-                        <div key={msg.id} className="text-sm">
+                        <div key={msg.id} className="text-sm animate-fade-in">
                           {msg.role === 'user' && (
                             <div className="flex justify-end">
                               <div className="bg-[#efeeeb] text-[#1D1D1F] rounded-[10px] px-4 py-2.5 max-w-[85%] font-normal shadow-2xs text-[13.5px] leading-relaxed">
@@ -1728,7 +1740,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
 
                       {/* Merge Changes Review Block inside chat (Academic & Minimal) */}
                       {proposedCode && (
-                        <div className="mt-4 bg-[#F6F4F1] border border-[#E8E5E0] rounded-[10px] p-4 text-sm" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
+                        <div className="mt-4 bg-[#F6F4F1] border border-[#E8E5E0] rounded-[10px] p-4 text-sm animate-scale-fade-in" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
                           <div className="flex items-center justify-between border-b border-[#E8E5E0] pb-3 mb-3">
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-[#1D1D1F] flex items-center gap-1.5 text-[13.5px]">
@@ -1784,7 +1796,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
 
                     {/* Bottom Fixed Input Bar inside card (No colored backgrounds, clean borders) */}
                     <div className="p-3 border-t border-[#E8E5E0] bg-white shrink-0">
-                      <div className="flex items-center gap-2.5 bg-white border border-[#E8E5E0] rounded-[10px] px-3.5 py-1.5 focus-within:border-[#1D1D1F] transition-all" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
+                      <div className="flex items-center gap-2.5 bg-white border border-[#E8E5E0] rounded-[10px] px-3.5 py-1.5 focus-within:border-[#1D1D1F] focus-within:shadow-[0_4px_12px_rgba(0,0,0,.06)] transition-[border-color,box-shadow] duration-150 ease-out" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.05)' }}>
                         <input
                           autoFocus
                           type="text"
@@ -1795,13 +1807,13 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                             if (e.key === 'Escape') setIsVibeMode(false);
                           }}
                           placeholder="Ask a follow-up..."
-                          className="flex-1 bg-transparent text-[#1D1D1F] placeholder-[#6B7280] border-none outline-none text-[13.5px] py-1.5"
+                          className="flex-1 bg-transparent text-[#1D1D1F] placeholder-[#6B7280] border-none outline-none text-[13.5px] py-1.5 transition-colors"
                           disabled={isGeneratingVibe}
                         />
                         <button 
                           onClick={handleVibeSubmit}
                           disabled={isGeneratingVibe || !vibeInput.trim()}
-                          className="w-8 h-8 flex items-center justify-center rounded-[8px] bg-[#E86A24] text-white hover:bg-[#D55F1E] disabled:opacity-30 disabled:bg-[#E8E5E0] disabled:text-[#6B7280] transition-colors shrink-0"
+                          className="w-8 h-8 flex items-center justify-center rounded-[8px] bg-[#E86A24] text-white hover:bg-[#D55F1E] disabled:opacity-30 disabled:bg-[#E8E5E0] disabled:text-[#6B7280] transition-[background-color,transform,opacity] duration-150 active:scale-95 shrink-0"
                         >
                           {isGeneratingVibe ? (
                             <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -1815,7 +1827,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                 ) : (
                   /* Compact Bottom Bar (Initial state before any prompt - Edge-to-Edge & Academic) */
                   <div 
-                    className="bg-white border border-[#E8E5E0] rounded-[12px] p-2.5 flex items-center gap-2.5"
+                    className="bg-white border border-[#E8E5E0] rounded-[12px] p-2.5 flex items-center gap-2.5 focus-within:border-[#1D1D1F] focus-within:shadow-[0_10px_28px_rgba(0,0,0,.12)] transition-[border-color,box-shadow] duration-150 ease-out animate-scale-fade-in"
                     style={{ boxShadow: '0 6px 20px rgba(0,0,0,.08)' }}
                   >
                     <input
@@ -1828,13 +1840,13 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                         if (e.key === 'Escape') setIsVibeMode(false);
                       }}
                       placeholder="Ask anything..."
-                      className="flex-1 bg-transparent text-[#1D1D1F] placeholder-[#6B7280] border-none outline-none px-3 py-2 text-[13.5px]"
+                      className="flex-1 bg-transparent text-[#1D1D1F] placeholder-[#6B7280] border-none outline-none px-3 py-2 text-[13.5px] transition-colors"
                       disabled={isGeneratingVibe}
                     />
                     <button 
                       onClick={handleVibeSubmit}
                       disabled={isGeneratingVibe || !vibeInput.trim()}
-                      className="w-9 h-9 flex items-center justify-center rounded-[8px] bg-[#E86A24] text-white hover:bg-[#D55F1E] disabled:opacity-30 disabled:bg-[#E8E5E0] disabled:text-[#6B7280] transition-colors shrink-0"
+                      className="w-9 h-9 flex items-center justify-center rounded-[8px] bg-[#E86A24] text-white hover:bg-[#D55F1E] disabled:opacity-30 disabled:bg-[#E8E5E0] disabled:text-[#6B7280] transition-[background-color,transform,opacity] duration-150 active:scale-95 shrink-0"
                     >
                       {isGeneratingVibe ? (
                         <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
