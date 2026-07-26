@@ -169,7 +169,12 @@ export class TypstLspClient {
     });
   }
 
+  public isConnected(): boolean {
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+  }
+
   public async getCompletions(position: any, context?: any) {
+    if (!this.isConnected()) return null;
     const params: any = {
       textDocument: { uri: this.fileUri },
       position: {
@@ -184,19 +189,18 @@ export class TypstLspClient {
         triggerCharacter: context.triggerCharacter
       };
     }
-    const response = await this.sendRequest("textDocument/completion", params);
-    return response;
+    return await this.sendRequest("textDocument/completion", params).catch(() => null);
   }
 
   public async getHover(position: any) {
-    const response = await this.sendRequest("textDocument/hover", {
+    if (!this.isConnected()) return null;
+    return await this.sendRequest("textDocument/hover", {
       textDocument: { uri: this.fileUri },
       position: {
         line: position.lineNumber - 1,
         character: position.column - 1
       }
-    });
-    return response;
+    }).catch(() => null);
   }
 
   public dispose() {
@@ -205,3 +209,4 @@ export class TypstLspClient {
     }
   }
 }
+

@@ -13,16 +13,33 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { insforge } from "@/lib/insforge";
 
 export default function Page() {
   const [user, setUser] = useState<{ name: string; email: string; avatar?: string; provider: string } | null>(null);
-
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem("kairo_user");
       if (savedUser) {
-        try { setUser(JSON.parse(savedUser)); } catch (e) {}
+        try {
+          const parsed = JSON.parse(savedUser);
+          setUser(parsed);
+          // Auto-sync active browser session to InsForge Database
+          (async () => {
+            try {
+              await insforge.database.from("users").upsert([
+                {
+                  email: parsed.email,
+                  full_name: parsed.name,
+                  picture: parsed.avatar || null
+                }
+              ]);
+            } catch (err) {
+              console.warn("Auto-sync to InsForge failed:", err);
+            }
+          })();
+        } catch (e) {}
       }
     }
   }, []);

@@ -8,6 +8,7 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
+import { insforge } from "@/lib/insforge";
 
 function GoogleRealAuthButton({ onSuccessLogin, isLoading, setIsLoading, setError }: {
   onSuccessLogin: (user: { name: string; email: string; avatar?: string; provider: string }) => void;
@@ -28,12 +29,28 @@ function GoogleRealAuthButton({ onSuccessLogin, isLoading, setIsLoading, setErro
         if (!res.ok) throw new Error("Failed to fetch userinfo from Google.");
         const data = await res.json();
         if (data && data.email) {
-          onSuccessLogin({
+          const userObj = {
             name: data.name || data.given_name || data.email.split("@")[0],
             email: data.email,
             avatar: data.picture,
             provider: "Google"
-          });
+          };
+
+          // Sync user record to InsForge Database matching exact schema
+          try {
+            await insforge.database.from("users").upsert([
+              {
+                email: userObj.email,
+                full_name: userObj.name,
+                picture: userObj.avatar,
+                google_id: data.sub || data.id || null
+              }
+            ]);
+          } catch (dbErr) {
+            console.warn("Sync to InsForge DB failed:", dbErr);
+          }
+
+          onSuccessLogin(userObj);
         } else {
           setError("Gagal mengambil profil akun Google.");
           setIsLoading(false);
@@ -89,15 +106,29 @@ function AuthFormContent() {
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const [showGithubModal, setShowGithubModal] = useState(false);
-  const [githubAuthLoading, setGithubAuthLoading] = useState(false);
-
   useEffect(() => {
     const paramMode = searchParams.get("mode");
     if (paramMode === "signup" || paramMode === "signin") {
       setMode(paramMode);
     }
-  }, [searchParams]);
+
+    const authError = searchParams.get("error");
+    if (authError) {
+      setError(authError);
+    }
+
+    const githubSuccess = searchParams.get("github_success");
+    const githubUserData = searchParams.get("user");
+    if (githubSuccess === "1" && githubUserData) {
+      try {
+        const userObj = JSON.parse(githubUserData);
+        localStorage.setItem("kairo_user", JSON.stringify(userObj));
+        router.push("/");
+      } catch (e) {
+        console.error("Failed to parse GitHub user data:", e);
+      }
+    }
+  }, [searchParams, router]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,23 +147,14 @@ function AuthFormContent() {
     }, 800);
   };
 
-  const handleSocialAuth = (provider: string) => {
-    if (provider === "GitHub") {
-      setShowGithubModal(true);
+  const handleGithubLogin = () => {
+    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
+    if (!clientId) {
+      setError("PENTING: Client ID GitHub belum dipasang! Silakan buat GitHub OAuth App di GitHub Developer Settings dan masukkan ke file frontend/.env.local pada variabel NEXT_PUBLIC_GITHUB_CLIENT_ID.");
+      return;
     }
-  };
-
-  const handleAuthorizeGithub = () => {
-    setGithubAuthLoading(true);
-    setTimeout(() => {
-      const mockUser = {
-        name: "alex-rivera-dev",
-        email: "alex.rivera@github.dev",
-        provider: "GitHub"
-      };
-      localStorage.setItem("kairo_user", JSON.stringify(mockUser));
-      router.push("/");
-    }, 700);
+    const redirectUri = `${window.location.origin}/api/auth/github/callback`;
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email&redirect_uri=${encodeURIComponent(redirectUri)}`;
   };
 
 
@@ -344,8 +366,8 @@ function AuthFormContent() {
 
                   <button
                     type="button"
-                    onClick={() => handleSocialAuth("GitHub")}
-                    className="w-full bg-white hover:bg-neutral-50 text-neutral-700 font-medium py-2.5 px-4 rounded-xl text-sm border border-neutral-200/80 transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-3 shadow-xs"
+                    onClick={handleGithubLogin}
+                    className="w-full bg-white hover:bg-neutral-50 text-neutral-700 font-medium py-2.5 px-4 rounded-xl text-sm border border-neutral-200/80 transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-3 shadow-xs cursor-pointer"
                   >
                     <svg className="w-4 h-4 fill-current text-neutral-900" viewBox="0 0 24 24">
                       <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
@@ -391,79 +413,7 @@ function AuthFormContent() {
 
 
 
-            {/* GitHub Authorize Modal */}
-            <AnimatePresence>
-              {showGithubModal && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 font-sans"
-                  onClick={() => !githubAuthLoading && setShowGithubModal(false)}
-                >
-                  <motion.div
-                    initial={{ scale: 0.95, opacity: 0, y: 10 }}
-                    animate={{ scale: 1, opacity: 1, y: 0 }}
-                    exit={{ scale: 0.95, opacity: 0, y: 10 }}
-                    transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
-                    className="bg-neutral-900 text-white rounded-2xl shadow-2xl border border-neutral-800 max-w-[400px] w-full overflow-hidden"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="p-6 text-center border-b border-neutral-800">
-                      <div className="flex items-center justify-center gap-4 mb-4">
-                        <div className="w-10 h-10 rounded-full bg-white text-neutral-900 flex items-center justify-center font-bold text-lg shadow-md">
-                          <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                            <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-                          </svg>
-                        </div>
-                        <div className="text-neutral-500 font-medium text-lg">✕</div>
-                        <img src="/kairo-logo.svg" alt="Kairo Studio" className="h-8 w-auto bg-white p-1 rounded-md" />
-                      </div>
-                      <h3 className="text-lg font-semibold">Authorize Kairo Studio</h3>
-                      <p className="text-xs text-neutral-400 mt-1">
-                        Kairo Studio wants to access your GitHub account <span className="text-[#E86A24] font-mono font-medium">alex-rivera-dev</span>.
-                      </p>
-                    </div>
 
-                    <div className="p-6 bg-neutral-950/50 space-y-4">
-                      <div className="text-xs text-neutral-300 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-emerald-400 font-bold">✓</span>
-                          <span>Read access to profile and email address</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-emerald-400 font-bold">✓</span>
-                          <span>Access to academic & research repositories</span>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 flex gap-3">
-                        <button
-                          type="button"
-                          disabled={githubAuthLoading}
-                          onClick={() => setShowGithubModal(false)}
-                          className="w-1/3 py-2.5 px-4 rounded-xl text-xs font-medium border border-neutral-700 hover:bg-neutral-800 transition-colors text-neutral-300"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          disabled={githubAuthLoading}
-                          onClick={handleAuthorizeGithub}
-                          className="flex-1 bg-[#238636] hover:bg-[#2ea043] text-white font-medium py-2.5 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-sm"
-                        >
-                          {githubAuthLoading ? (
-                            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          ) : (
-                            <span>Authorize kairo-studio</span>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
           </div>
         </div>
