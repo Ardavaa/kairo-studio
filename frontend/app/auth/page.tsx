@@ -36,18 +36,18 @@ function GoogleRealAuthButton({ onSuccessLogin, isLoading, setIsLoading, setErro
             provider: "Google"
           };
 
-          // Sync user record to InsForge Database
+          // Sync user record to InsForge Database matching exact schema
           try {
             await insforge.database.from("users").upsert([
               {
                 email: userObj.email,
-                name: userObj.name,
-                avatar: userObj.avatar,
-                provider: "Google"
+                full_name: userObj.name,
+                picture: userObj.avatar,
+                google_id: data.sub || data.id || null
               }
             ]);
           } catch (dbErr) {
-            console.warn("Sync to InsForge DB failed or table structure pending:", dbErr);
+            console.warn("Sync to InsForge DB failed:", dbErr);
           }
 
           onSuccessLogin(userObj);
