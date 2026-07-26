@@ -4,10 +4,12 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.core.database import Base
 
+
 class Conversation(Base):
     __tablename__ = "conversations"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_email = Column(String, nullable=False, index=True)  # CRITICAL: Tenant isolation
     title = Column(String, nullable=False)
     query = Column(String, nullable=True)
     content = Column(String, nullable=True)  # Store the markdown explanation
