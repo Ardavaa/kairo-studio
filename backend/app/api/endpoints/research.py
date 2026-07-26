@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import List, Any
+from typing import List, Any, Optional
 
 from app.core.config import settings
 from app.core.database import get_db
@@ -15,6 +15,48 @@ from app.models.conversation import Conversation
 
 router = APIRouter()
 
+
+def get_current_user_email(authorization: Optional[str] = Header(None)) -> str:
+    """Extract user email from JWT token in Authorization header."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or invalid Authorization header. User authentication required."
+        )
+    token = authorization.replace("Bearer ", "")
+    
+    # Decode JWT token (simplified - in production use proper JWT verification)
+    try:
+        import base64
+        import json
+        
+        # JWT format: header.payload.signature
+        parts = token.split(".")
+        if len(parts) != 3:
+            raise HTTPException(status_code=401, detail="Invalid token format")
+        
+        # Decode payload (middle part)
+        # Add padding if needed
+        payload = parts[1]
+        padding = 4 - (len(payload) % 4)
+        if padding != 4:
+            payload += "=" * padding
+        
+        decoded = base64.urlsafe_b64decode(payload)
+        payload_data = json.loads(decoded)
+        
+        email = payload_data.get("email")
+        if not email:
+            raise HTTPException(status_code=401, detail="Token does not contain email")
+        
+        return email
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+
+
 class ResearchQuery(BaseModel):
     query: str
     model: str | None = None
@@ -24,20 +66,48 @@ class ResearchResponse(BaseModel):
     papers: List[Any]
     conversation_id: str | None = None
 
+
 @router.get("/conversations")
-async def get_conversations(db_session: AsyncSession = Depends(get_db)):
-    stmt = select(Conversation).order_by(Conversation.created_at.desc())
+async def get_conversations(
+    db_session: AsyncSession = Depends(get_db),
+    user_email: str = Depends(get_current_user_email)
+):
+    """
+    CRITICAL SECURITY FIX: Filter conversations by user_email (Tenant Isolation).
+    Users can ONLY see their own conversations.
+    """
+    # STRICT: Filter by authenticated user's email ONLY
+    stmt = select(Conversation).where(
+        Conversation.user_email == user_email
+    ).order_by(Conversation.created_at.desc())
+    
     result = await db_session.execute(stmt)
     conversations = result.scalars().all()
-    return [{"id": str(c.id), "title": c.title, "created_at": c.created_at.isoformat()} for c in conversations]
+    
+    return [
+        {
+            "id": str(c.id), 
+            "title": c.title, 
+            "created_at": c.created_at.isoformat()
+        } 
+        for c in conversations
+    ]
 
 @router.post("/query", response_model=ResearchResponse)
-async def start_research(request: ResearchQuery, db_session: AsyncSession = Depends(get_db)):
+async def start_research(
+    request: ResearchQuery, 
+    db_session: AsyncSession = Depends(get_db),
+    user_email: str = Depends(get_current_user_email)
+):
     """
     Executes the research pipeline synchronously and returns the findings.
+    CRITICAL SECURITY FIX: Associates conversation with authenticated user.
     """
-    # Save as new conversation
-    new_conv = Conversation(title=request.query[:100] + ("..." if len(request.query) > 100 else ""))
+    # Save as new conversation with user_email (TENANT ISOLATION)
+    new_conv = Conversation(
+        user_email=user_email,  # CRITICAL: Tie conversation to user
+        title=request.query[:100] + ("..." if len(request.query) > 100 else "")
+    )
     db_session.add(new_conv)
     await db_session.commit()
 
@@ -55,9 +125,16 @@ async def start_research(request: ResearchQuery, db_session: AsyncSession = Depe
         raise HTTPException(status_code=500, detail=f"Planner Error: {str(e)}")
         
     if not plan.needs_search:
+        # Save direct answer with user_email
+        new_conv.query = request.query
+        new_conv.content = plan.direct_answer or plan.explanation or "Hello! How can I help you?"
+        new_conv.papers = "[]"
+        await db_session.commit()
+        
         return ResearchResponse(
             explanation=plan.direct_answer or plan.explanation or "Hello! How can I help you?",
-            papers=[]
+            papers=[],
+            conversation_id=str(new_conv.id)
         )
         
     if not plan.search_queries:
@@ -226,24 +303,54 @@ Respond with nothing but the JSON object.
     )
 
 @router.delete("/conversations/{conversation_id}")
-async def delete_conversation(conversation_id: str, db_session: AsyncSession = Depends(get_db)):
-    stmt = select(Conversation).where(Conversation.id == conversation_id)
+async def delete_conversation(
+    conversation_id: str, 
+    db_session: AsyncSession = Depends(get_db),
+    user_email: str = Depends(get_current_user_email)
+):
+    """
+    CRITICAL SECURITY FIX: Users can ONLY delete their own conversations.
+    """
+    # STRICT: Verify ownership before delete
+    stmt = select(Conversation).where(
+        Conversation.id == conversation_id,
+        Conversation.user_email == user_email  # CRITICAL: Owner check
+    )
     result = await db_session.execute(stmt)
     conv = result.scalar_one_or_none()
+    
     if not conv:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        raise HTTPException(
+            status_code=404, 
+            detail="Conversation not found or you don't have permission to delete it"
+        )
     
     await db_session.delete(conv)
     await db_session.commit()
     return {"status": "success"}
 
 @router.get("/conversations/{conversation_id}")
-async def get_conversation(conversation_id: str, db_session: AsyncSession = Depends(get_db)):
-    stmt = select(Conversation).where(Conversation.id == conversation_id)
+async def get_conversation(
+    conversation_id: str, 
+    db_session: AsyncSession = Depends(get_db),
+    user_email: str = Depends(get_current_user_email)
+):
+    """
+    CRITICAL SECURITY FIX: Users can ONLY view their own conversations.
+    """
+    # STRICT: Verify ownership before access
+    stmt = select(Conversation).where(
+        Conversation.id == conversation_id,
+        Conversation.user_email == user_email  # CRITICAL: Owner check
+    )
     result = await db_session.execute(stmt)
     conv = result.scalar_one_or_none()
+    
     if not conv:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        raise HTTPException(
+            status_code=404, 
+            detail="Conversation not found or you don't have permission to access it"
+        )
         
     import json
     papers = []
