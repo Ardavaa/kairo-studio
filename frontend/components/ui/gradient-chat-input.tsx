@@ -29,6 +29,7 @@ export interface GradientChatInputProps {
   onViewGraph?: () => void;
   className?: string;
   initialMessages?: ChatMessage[];
+  userEmail?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -41,6 +42,7 @@ export default function GradientChatInput({
   onViewGraph,
   className,
   initialMessages = [],
+  userEmail = "",
 }: GradientChatInputProps) {
   const [value, setValue] = React.useState("");
   const [messages, setMessages] = React.useState<ChatMessage[]>(initialMessages);
@@ -192,10 +194,13 @@ export default function GradientChatInput({
     setMessages((prev) => [...prev, { id: botId, text: "", sender: "bot", isLoading: true }]);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/research/query", {
+      const res = await fetch(`http://localhost:8000/api/v1/research/query?user_email=${encodeURIComponent(userEmail)}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: text, model: selectedModel }),
+        headers: { 
+          "Content-Type": "application/json",
+          "X-User-Email": userEmail
+        },
+        body: JSON.stringify({ query: text, model: selectedModel, user_email: userEmail }),
       });
       
       const data = await res.json();

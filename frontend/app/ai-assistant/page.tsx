@@ -27,9 +27,25 @@ export default function AIAssistantPage() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [initialMessages, setInitialMessages] = useState<any[]>([]);
 
+  const getUserEmail = () => {
+    if (typeof window === "undefined") return "";
+    try {
+      const savedUser = localStorage.getItem("kairo_user");
+      if (savedUser) return JSON.parse(savedUser).email || "";
+    } catch (e) {}
+    return "";
+  };
+
   const fetchConversations = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/v1/research/conversations");
+      const email = getUserEmail();
+      if (!email) {
+        setConversations([]);
+        return;
+      }
+      const res = await fetch(`http://localhost:8000/api/v1/research/conversations?user_email=${encodeURIComponent(email)}`, {
+        headers: { "X-User-Email": email }
+      });
       if (res.ok) {
         const data = await res.json();
         setConversations(data);
@@ -45,7 +61,10 @@ export default function AIAssistantPage() {
 
   const handleLoadConversation = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/research/conversations/${id}`);
+      const email = getUserEmail();
+      const res = await fetch(`http://localhost:8000/api/v1/research/conversations/${id}?user_email=${encodeURIComponent(email)}`, {
+        headers: { "X-User-Email": email }
+      });
       if (res.ok) {
         const data = await res.json();
         setActiveConversationId(id);
@@ -73,8 +92,10 @@ export default function AIAssistantPage() {
   const handleDeleteConversation = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation(); // prevent triggering the load
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/research/conversations/${id}`, {
-        method: "DELETE"
+      const email = getUserEmail();
+      const res = await fetch(`http://localhost:8000/api/v1/research/conversations/${id}?user_email=${encodeURIComponent(email)}`, {
+        method: "DELETE",
+        headers: { "X-User-Email": email }
       });
       if (res.ok) {
         if (activeConversationId === id) {
@@ -227,6 +248,7 @@ export default function AIAssistantPage() {
                 <GradientChatInput
                   key={activeConversationId || 'new'}
                   initialMessages={initialMessages}
+                  userEmail={getUserEmail()}
                   placeholder="Ask anything about your research..."
                   onSend={handleSend}
                   onViewGraph={handleViewGraph}

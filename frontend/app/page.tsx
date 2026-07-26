@@ -79,7 +79,9 @@ export default function Page() {
                 <button 
                   onClick={() => {
                     localStorage.removeItem("kairo_user");
+                    localStorage.removeItem("auth_token");
                     setUser(null);
+                    window.location.href = "/auth";
                   }}
                   className="text-xs text-neutral-400 hover:text-neutral-600 underline transition-colors"
                   title="Sign out"

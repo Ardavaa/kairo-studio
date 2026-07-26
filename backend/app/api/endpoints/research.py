@@ -16,50 +16,45 @@ from app.models.conversation import Conversation
 router = APIRouter()
 
 
-def get_current_user_email(authorization: Optional[str] = Header(None)) -> str:
-    """Extract user email from JWT token in Authorization header."""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="Missing or invalid Authorization header. User authentication required."
-        )
-    token = authorization.replace("Bearer ", "")
-    
-    # Decode JWT token (simplified - in production use proper JWT verification)
-    try:
-        import base64
-        import json
-        
-        # JWT format: header.payload.signature
-        parts = token.split(".")
-        if len(parts) != 3:
-            raise HTTPException(status_code=401, detail="Invalid token format")
-        
-        # Decode payload (middle part)
-        # Add padding if needed
-        payload = parts[1]
-        padding = 4 - (len(payload) % 4)
-        if padding != 4:
-            payload += "=" * padding
-        
-        decoded = base64.urlsafe_b64decode(payload)
-        payload_data = json.loads(decoded)
-        
-        email = payload_data.get("email")
-        if not email:
-            raise HTTPException(status_code=401, detail="Token does not contain email")
-        
-        return email
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+def get_current_user_email(
+    user_email: Optional[str] = None,
+    authorization: Optional[str] = Header(None),
+    x_user_email: Optional[str] = Header(None)
+) -> str:
+    """Extract user email from query param, X-User-Email header, or JWT token in Authorization header."""
+    email = user_email or x_user_email
+    if email and email.strip() not in ("null", "undefined", ""):
+        return email.strip()
+
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.replace("Bearer ", "")
+        try:
+            import base64
+            import json
+            parts = token.split(".")
+            if len(parts) == 3:
+                payload = parts[1]
+                padding = 4 - (len(payload) % 4)
+                if padding != 4:
+                    payload += "=" * padding
+                decoded = base64.urlsafe_b64decode(payload)
+                payload_data = json.loads(decoded)
+                email_from_jwt = payload_data.get("email")
+                if email_from_jwt and email_from_jwt.strip() not in ("null", "undefined", ""):
+                    return email_from_jwt.strip()
+        except Exception:
+            pass
+
+    raise HTTPException(
+        status_code=401,
+        detail="Missing or invalid authentication. Please provide valid user_email or Authorization header."
+    )
 
 
 class ResearchQuery(BaseModel):
     query: str
     model: str | None = None
+    user_email: str | None = None
 
 class ResearchResponse(BaseModel):
     explanation: str
@@ -103,9 +98,10 @@ async def start_research(
     Executes the research pipeline synchronously and returns the findings.
     CRITICAL SECURITY FIX: Associates conversation with authenticated user.
     """
+    effective_email = (request.user_email if request.user_email and request.user_email.strip() not in ("null", "undefined", "") else user_email)
     # Save as new conversation with user_email (TENANT ISOLATION)
     new_conv = Conversation(
-        user_email=user_email,  # CRITICAL: Tie conversation to user
+        user_email=effective_email,  # CRITICAL: Tie conversation to user
         title=request.query[:100] + ("..." if len(request.query) > 100 else "")
     )
     db_session.add(new_conv)

@@ -16,6 +16,7 @@ export const metadata: Metadata = {
 };
 
 import Sidebar from "@/components/Sidebar";
+import AuthGuard from "@/components/AuthGuard";
 
 export default function RootLayout({
   children,
@@ -28,8 +29,10 @@ export default function RootLayout({
       className={`${inter.variable} ${sourceSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Sidebar />
-        {children}
+        <AuthGuard>
+          <Sidebar />
+          {children}
+        </AuthGuard>
       </body>
     </html>
   );

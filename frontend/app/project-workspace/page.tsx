@@ -61,8 +61,23 @@ export default function ProjectWorkspacePage() {
   const [templateProjectTitle, setTemplateProjectTitle] = useState("");
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
 
+  const getUserEmail = () => {
+    if (typeof window === "undefined") return "";
+    try {
+      const savedUser = localStorage.getItem("kairo_user");
+      if (savedUser) return JSON.parse(savedUser).email || "";
+    } catch (e) {}
+    return "";
+  };
+
   useEffect(() => {
-    fetch("/api/projects")
+    const email = getUserEmail();
+    if (!email) {
+      setProjects([]);
+      setIsLoading(false);
+      return;
+    }
+    fetch(`/api/projects?user_email=${encodeURIComponent(email)}`)
       .then(res => res.json())
       .then(data => {
         setProjects(Array.isArray(data) ? data : []);
@@ -84,7 +99,7 @@ export default function ProjectWorkspacePage() {
     const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newProjectTitle, template: "empty" })
+      body: JSON.stringify({ title: newProjectTitle, template: "empty", user_email: getUserEmail() })
     });
     if (res.ok) {
       const newProject = await res.json();
@@ -149,7 +164,8 @@ export default function ProjectWorkspacePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newTitle,
-          duplicateFrom: id
+          duplicateFrom: id,
+          user_email: getUserEmail()
         })
       });
       if (res.ok) {
@@ -626,7 +642,7 @@ export default function ProjectWorkspacePage() {
                     const res = await fetch("/api/projects", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ title: templateProjectTitle, template: selectedTemplate })
+                      body: JSON.stringify({ title: templateProjectTitle, template: selectedTemplate, user_email: getUserEmail() })
                     });
                     if (res.ok) {
                       const newProject = await res.json();

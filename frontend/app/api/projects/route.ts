@@ -31,10 +31,17 @@ async function saveDb(data: any) {
   await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2), "utf-8");
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const userEmail = searchParams.get("user_email");
+    if (!userEmail || ["", "null", "undefined"].includes(userEmail.trim())) {
+      return NextResponse.json([]);
+    }
     const projects = await getDb();
-    return NextResponse.json(projects);
+    const cleanEmail = userEmail.trim();
+    const filtered = projects.filter((p: any) => p.user_email === cleanEmail || p.author === cleanEmail);
+    return NextResponse.json(filtered);
   } catch (err: any) {
     return NextResponse.json({ error: err.toString() }, { status: 500 });
   }
@@ -46,6 +53,7 @@ export async function POST(req: NextRequest) {
     const title = body.title || "Untitled Document";
     const template = body.template || "default";
     const duplicateFrom = body.duplicateFrom;
+    const userEmail = body.user_email || "";
 
     const projects = await getDb();
     const newId = `proj_${Date.now()}`;
@@ -60,6 +68,7 @@ export async function POST(req: NextRequest) {
         ...origProject,
         id: newId,
         title: title,
+        user_email: userEmail || origProject.user_email || "",
         updated: new Date().toISOString(),
       };
       projects.splice(origIndex + 1, 0, newProject);
@@ -76,7 +85,8 @@ export async function POST(req: NextRequest) {
     const newProject = {
       id: newId,
       title: title,
-      author: "You",
+      author: userEmail ? userEmail.split("@")[0] : "You",
+      user_email: userEmail,
       updated: new Date().toISOString(),
       type: "document"
     };

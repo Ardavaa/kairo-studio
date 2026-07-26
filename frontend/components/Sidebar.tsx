@@ -268,7 +268,9 @@ export default function Sidebar() {
               <button
                 onClick={() => {
                   localStorage.removeItem("kairo_user");
+                  localStorage.removeItem("auth_token");
                   setUser(null);
+                  window.location.href = "/auth";
                 }}
                 className="text-[11px] text-neutral-400 hover:text-red-500 font-medium px-2 py-1 rounded transition-colors shrink-0"
                 title="Sign out"
