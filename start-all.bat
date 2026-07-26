@@ -11,9 +11,13 @@ echo.
 
 cd /d "%~dp0"
 
-REM Check Python
-python --version >nul 2>&1
-if errorlevel 1 (
+REM Check Python (python or py)
+set PYTHON_CMD=
+python --version >nul 2>&1 && set PYTHON_CMD=python
+if not defined PYTHON_CMD (
+    py --version >nul 2>&1 && set PYTHON_CMD=py
+)
+if not defined PYTHON_CMD (
     echo ❌ Python not found! Please install Python 3.9+
     pause
     exit /b 1
@@ -30,9 +34,15 @@ if errorlevel 1 (
 REM Check uv
 where uv >nul 2>&1
 if errorlevel 1 (
-    echo ⚠️ uv not found, installing...
-    pip install uv
+    echo ⚠️ uv not found, installing via %PYTHON_CMD%...
+    %PYTHON_CMD% -m pip install uv
 )
+
+echo.
+echo ───────────────────────────────────────────────────────
+echo 🧹 Clearing stale processes on ports 3000 & 8000...
+echo ───────────────────────────────────────────────────────
+call npx --yes kill-port 3000 8000 >nul 2>&1
 
 echo.
 echo ───────────────────────────────────────────────────────
@@ -41,7 +51,7 @@ echo ─────────────────────────
 
 REM Install backend dependencies
 cd backend
-echo 📦 Installing backend dependencies...
+echo 📦 Syncing backend dependencies...
 uv sync --frozen 2>nul || uv sync
 cd ..
 
@@ -60,15 +70,15 @@ echo ═════════════════════════
 echo.
 
 REM Start Backend API
-echo 🔥 Starting Backend API ^(http://localhost:8000^)
+echo 🔥 Starting Backend API (http://localhost:8000)
 echo    API Docs: http://localhost:8000/docs
 start "Kairo Studio - Backend" cmd /k "cd /d %~dp0backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
 
-timeout /t 3 /nobreak >nul
+timeout /t 2 /nobreak >nul
 
 REM Start Frontend
 echo.
-echo 🎨 Starting Frontend ^(http://localhost:3000^)
+echo 🎨 Starting Frontend (http://localhost:3000)
 start "Kairo Studio - Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
 
 echo.
@@ -80,7 +90,5 @@ echo   Backend API:  http://localhost:8000
 echo   API Docs:    http://localhost:8000/docs
 echo   Frontend:    http://localhost:3000
 echo.
-echo ⚠️  Note: Celery skipped ^(Redis not available^)
-echo.
-echo Press any key to exit...
+echo Press any key to exit this window...
 pause >nul

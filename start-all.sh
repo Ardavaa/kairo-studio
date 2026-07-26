@@ -1,11 +1,6 @@
 #!/bin/bash
 # Kairo Studio - Start All Services
 # Usage: ./start-all.sh [options]
-#
-# Options:
-#   --skip-celery    Skip Celery worker (if Redis not available)
-#   --skip-frontend  Skip frontend
-#   --help           Show this help
 
 set -e
 
@@ -19,6 +14,7 @@ NC='\033[0m' # No Color
 # Defaults
 SKIP_CELERY=false
 SKIP_FRONTEND=false
+CLEAN_PORTS=true
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -31,6 +27,10 @@ while [[ $# -gt 0 ]]; do
             SKIP_FRONTEND=true
             shift
             ;;
+        --no-clean)
+            CLEAN_PORTS=false
+            shift
+            ;;
         --help|-h)
             cat << 'EOF'
 Kairo Studio - Start All Services
@@ -38,19 +38,15 @@ Kairo Studio - Start All Services
 Usage: ./start-all.sh [options]
 
 Options:
-  --skip-celery    Skip Celery worker (if Redis not available)
+  --skip-celery    Skip Celery worker
   --skip-frontend  Skip frontend
+  --no-clean       Do not auto-free occupied ports (3000, 8000)
   --help           Show this help
 
 Services:
   - Backend API (FastAPI on port 8000)
   - Celery Worker (background tasks)
   - Frontend (Next.js on port 3000)
-
-Requirements:
-  - Redis running on localhost:6379 (for Celery)
-  - Python dependencies installed (uv sync)
-  - Node dependencies installed (npm install)
 EOF
             exit 0
             ;;
@@ -71,8 +67,15 @@ echo -e "${BLUE}        🚀 Kairo Studio - Starting All Services${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════${NC}"
 echo ""
 
-# Check Python
-if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
+# Check Python (python3, python, or py)
+PYTHON_BIN=""
+if command -v python3 &> /dev/null; then
+    PYTHON_BIN="python3"
+elif command -v python &> /dev/null; then
+    PYTHON_BIN="python"
+elif command -v py &> /dev/null; then
+    PYTHON_BIN="py"
+else
     echo -e "${RED}❌ Python not found! Please install Python 3.9+${NC}"
     exit 1
 fi
@@ -85,8 +88,14 @@ fi
 
 # Check uv
 if ! command -v uv &> /dev/null; then
-    echo -e "${YELLOW}⚠️ uv not found, installing...${NC}"
-    pip install uv
+    echo -e "${YELLOW}⚠️ uv not found, installing via $PYTHON_BIN...${NC}"
+    $PYTHON_BIN -m pip install uv
+fi
+
+# Clean up stale ports if enabled
+if $CLEAN_PORTS && command -v npx &> /dev/null; then
+    echo -e "${YELLOW}🧹 Clearing stale processes on ports 3000 & 8000...${NC}"
+    npx --yes kill-port 3000 8000 >/dev/null 2>&1 || true
 fi
 
 # Check Redis
@@ -106,21 +115,18 @@ else
         echo -e "${GREEN}✅ Redis is running${NC}"
     else
         echo -e "${YELLOW}⚠️ Redis not running - Celery will be skipped${NC}"
-        echo -e "${YELLOW}   To run Celery, start Redis first:${NC}"
-        echo -e "${YELLOW}   - Docker: docker run -d -p 6379:6379 redis:alpine${NC}"
-        echo -e "${YELLOW}   - Or: redis-server${NC}"
         SKIP_CELERY=true
     fi
 fi
 
 echo ""
 echo -e "${BLUE}─────────────────────────────────────────────────${NC}"
-echo -e "${BLUE}📦 Installing dependencies...${NC}"
+echo -e "${BLUE}📦 Checking dependencies...${NC}"
 echo -e "${BLUE}─────────────────────────────────────────────────${NC}"
 
 # Install backend dependencies
 if [ -f "$BACKEND_DIR/pyproject.toml" ]; then
-    echo -e "${GREEN}📦 Installing backend dependencies...${NC}"
+    echo -e "${GREEN}📦 Checking backend dependencies...${NC}"
     cd "$BACKEND_DIR"
     uv sync --frozen 2>/dev/null || uv sync
 fi
@@ -138,18 +144,24 @@ echo -e "${BLUE}                 🏃 Starting Services${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════${NC}"
 echo ""
 
+IS_WINDOWS=false
+case "$(uname -s 2>/dev/null)" in
+    *MINGW*|*MSYS*|*CYGWIN*) IS_WINDOWS=true ;;
+esac
+
 # Function to cleanup on exit
 cleanup() {
     echo ""
     echo -e "${YELLOW}🛑 Stopping all services...${NC}"
-    if [ ! -z "$BACKEND_PID" ]; then
-        kill $BACKEND_PID 2>/dev/null || true
-    fi
-    if [ ! -z "$CELERY_PID" ]; then
-        kill $CELERY_PID 2>/dev/null || true
-    fi
-    if [ ! -z "$FRONTEND_PID" ]; then
-        kill $FRONTEND_PID 2>/dev/null || true
+    if [ "$IS_WINDOWS" = true ]; then
+        if [ ! -z "$BACKEND_PID" ]; then taskkill //F //T //PID $BACKEND_PID 2>/dev/null || kill -9 $BACKEND_PID 2>/dev/null || true; fi
+        if [ ! -z "$CELERY_PID" ]; then taskkill //F //T //PID $CELERY_PID 2>/dev/null || kill -9 $CELERY_PID 2>/dev/null || true; fi
+        if [ ! -z "$FRONTEND_PID" ]; then taskkill //F //T //PID $FRONTEND_PID 2>/dev/null || kill -9 $FRONTEND_PID 2>/dev/null || true; fi
+        npx --yes kill-port 3000 8000 2>/dev/null || true
+    else
+        if [ ! -z "$BACKEND_PID" ]; then kill $BACKEND_PID 2>/dev/null || true; fi
+        if [ ! -z "$CELERY_PID" ]; then kill $CELERY_PID 2>/dev/null || true; fi
+        if [ ! -z "$FRONTEND_PID" ]; then kill $FRONTEND_PID 2>/dev/null || true; fi
     fi
     echo -e "${GREEN}✅ All services stopped${NC}"
 }
@@ -163,8 +175,7 @@ cd "$BACKEND_DIR"
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 
-# Wait for backend to start
-sleep 3
+sleep 2
 
 # Start Celery Worker
 if ! $SKIP_CELERY; then
@@ -201,5 +212,4 @@ echo ""
 echo -e "${YELLOW}Press Ctrl+C to stop all services${NC}"
 echo ""
 
-# Wait for all background jobs
 wait
