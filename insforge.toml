@@ -1,0 +1,16 @@
+# InsForge Configuration for Kairo Studio
+
+[project]
+id = "877c3b70-8cfb-4bdc-b216-bf87045a6b17"
+name = "Kairo Studio"
+region = "ap-southeast"
+
+[backend]
+enabled = true
+path = "backend"
+
+[backend.secrets]
+GOOGLE_CLIENT_ID = "secret:GOOGLE_CLIENT_ID"
+GOOGLE_CLIENT_SECRET = "secret:GOOGLE_CLIENT_SECRET"
+SECRET_KEY = "secret:SECRET_KEY"
+FRONTEND_URL = "secret:FRONTEND_URL"
