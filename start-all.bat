@@ -72,7 +72,7 @@ echo.
 REM Start Backend API
 echo 🔥 Starting Backend API (http://localhost:8000)
 echo    API Docs: http://localhost:8000/docs
-start "Kairo Studio - Backend" cmd /k "cd /d %~dp0backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+start "Kairo Studio - Backend" cmd /k "cd /d %~dp0backend && uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000"
 
 timeout /t 2 /nobreak >nul
 

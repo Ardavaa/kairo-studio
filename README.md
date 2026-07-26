@@ -49,6 +49,70 @@ Kairo Studio is built on a specialized multi-agent architecture rather than a si
 - **Retrieval & Search:** Qdrant, pgvector, Voyage AI embeddings, OpenAlex/Semantic Scholar APIs
 - **Document Processing:** PyMuPDF, GROBID, Unstructured, Docling
 
+## How to Setup
+
+### 1. Prerequisites
+Ensure you have the following installed on your system before setting up Kairo Studio:
+- **Node.js** (v18+ or v20+) & **npm**
+- **Python** (v3.11+)
+- **uv** (Fast Python package manager) — *Can be installed via `pip install uv`*
+- **Docker & Docker Desktop** (Required for PostgreSQL with pgvector and Redis)
+- **Git**
+
+---
+
+### 2. Quick Start (Automated 1-Click Setup) 🚀
+The easiest way to start all services (Docker databases, Backend API, and Frontend development server) is using the included automated startup scripts:
+
+#### For Windows:
+Simply run the batch script from your terminal or double-click it in File Explorer:
+```cmd
+.\start-all.bat
+```
+
+#### For Linux / macOS:
+Make the script executable and run it:
+```bash
+chmod +x start-all.sh
+./start-all.sh
+```
+
+*The automated script will automatically check dependencies, sync Python packages via `uv`, install Node modules, clear any stale port locks (3000 & 8000), and launch the frontend and backend simultaneously.*
+
+---
+
+### 3. Manual Step-by-Step Setup 🛠️
+If you prefer running services manually in separate terminal windows:
+
+#### Step 1: Start Database & Cache Services
+Make sure Docker Desktop is running, then start PostgreSQL and Redis from the project root:
+```bash
+docker compose up -d
+```
+
+#### Step 2: Configure Environment Variables
+Copy the example environment files and configure your API keys (OpenAI, Anthropic, Gemini, etc.):
+- In `backend/`: Copy `.env.example` to `.env`
+- In `frontend/`: Copy `.env.example` (or configure `.env.local`)
+
+#### Step 3: Start the Backend API Server
+Open a terminal, navigate to the `backend` directory, install dependencies, and start Uvicorn:
+```bash
+cd backend
+uv sync
+uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+*The Backend API will be available at `http://localhost:8000` and interactive Swagger docs at `http://localhost:8000/docs`.*
+
+#### Step 4: Start the Frontend Application
+Open a second terminal, navigate to the `frontend` directory, install packages, and start Next.js:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+*The Kairo Studio web interface will now be running at `http://localhost:3000`.*
+
 ## Design Principles
 
 - **Evidence First:** Every generated statement is traceable and backed by citations. No hallucinated citations.

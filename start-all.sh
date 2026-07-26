@@ -172,7 +172,7 @@ trap cleanup EXIT INT TERM
 echo -e "${GREEN}🔥 Starting Backend API (http://localhost:8000)${NC}"
 echo -e "${GREEN}   API Docs: http://localhost:8000/docs${NC}"
 cd "$BACKEND_DIR"
-uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
+uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 
 sleep 2
