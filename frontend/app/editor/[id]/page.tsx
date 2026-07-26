@@ -112,7 +112,7 @@ function handleEditorWillMount(monaco: any) {
 
         let suggestions: any[] = isReference ? [] : getTypstCompletions(monaco, range);
         
-        if (globalLspClient) {
+        if (globalLspClient && globalLspClient.isConnected()) {
           try {
             const lspCompletions = await globalLspClient.getCompletions(position, context);
             if (lspCompletions && lspCompletions.items) {
@@ -129,7 +129,7 @@ function handleEditorWillMount(monaco: any) {
               suggestions = [...suggestions, ...lspSuggestions];
             }
           } catch (e) {
-            console.error("LSP Completion error", e);
+            // Gracefully fallback to local completions if LSP is unavailable
           }
         }
 
@@ -139,9 +139,10 @@ function handleEditorWillMount(monaco: any) {
 
     monaco.languages.registerHoverProvider("typst", {
       provideHover: async (model: any, position: any) => {
-        if (globalLspClient) {
+        if (globalLspClient && globalLspClient.isConnected()) {
           try {
             const hover = await globalLspClient.getHover(position);
+
             if (hover && hover.contents) {
               return {
                 contents: Array.isArray(hover.contents) ? hover.contents : [hover.contents]

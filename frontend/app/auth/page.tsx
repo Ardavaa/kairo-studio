@@ -8,6 +8,7 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
+import { insforge } from "@/lib/insforge";
 
 function GoogleRealAuthButton({ onSuccessLogin, isLoading, setIsLoading, setError }: {
   onSuccessLogin: (user: { name: string; email: string; avatar?: string; provider: string }) => void;
@@ -28,12 +29,28 @@ function GoogleRealAuthButton({ onSuccessLogin, isLoading, setIsLoading, setErro
         if (!res.ok) throw new Error("Failed to fetch userinfo from Google.");
         const data = await res.json();
         if (data && data.email) {
-          onSuccessLogin({
+          const userObj = {
             name: data.name || data.given_name || data.email.split("@")[0],
             email: data.email,
             avatar: data.picture,
             provider: "Google"
-          });
+          };
+
+          // Sync user record to InsForge Database
+          try {
+            await insforge.database.from("users").upsert([
+              {
+                email: userObj.email,
+                name: userObj.name,
+                avatar: userObj.avatar,
+                provider: "Google"
+              }
+            ]);
+          } catch (dbErr) {
+            console.warn("Sync to InsForge DB failed or table structure pending:", dbErr);
+          }
+
+          onSuccessLogin(userObj);
         } else {
           setError("Gagal mengambil profil akun Google.");
           setIsLoading(false);
