@@ -27,86 +27,100 @@ export default function AIAssistantPage() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [initialMessages, setInitialMessages] = useState<any[]>([]);
 
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://gnitfu5w.function2.insforge.app";
+
   const getUserEmail = () => {
-    if (typeof window === "undefined") return "";
-    try {
-      const savedUser = localStorage.getItem("kairo_user");
-      if (savedUser) return JSON.parse(savedUser).email || "";
-    } catch (e) {}
-    return "";
-  };
+      if (typeof window === "undefined") return "";
+      try {
+        const savedUser = localStorage.getItem("kairo_user");
+        if (savedUser) return JSON.parse(savedUser).email || "";
+      } catch (e) {}
+      return "";
+    };
 
-  const fetchConversations = async () => {
-    try {
-      const email = getUserEmail();
-      if (!email) {
+    const fetchConversations = async () => {
+      try {
+        const email = getUserEmail();
+        if (!email) {
+          setConversations([]);
+          return;
+        }
+        const res = await fetch(`${API_BASE_URL}/papers-api/conversations`, {
+          headers: { 
+            "Authorization": `Bearer ${email}`,
+            "Content-Type": "application/json"
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setConversations(Array.isArray(data) ? data : []);
+        } else {
+          setConversations([]);
+        }
+      } catch (e) {
+        console.error("Failed to fetch conversations", e);
         setConversations([]);
-        return;
       }
-      const res = await fetch(`http://localhost:8000/api/v1/research/conversations?user_email=${encodeURIComponent(email)}`, {
-        headers: { "X-User-Email": email }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setConversations(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch conversations", e);
-    }
-  };
+    };
 
-  useEffect(() => {
-    fetchConversations();
-  }, []);
+    useEffect(() => {
+      fetchConversations();
+    }, []);
 
-  const handleLoadConversation = async (id: string) => {
-    try {
-      const email = getUserEmail();
-      const res = await fetch(`http://localhost:8000/api/v1/research/conversations/${id}?user_email=${encodeURIComponent(email)}`, {
-        headers: { "X-User-Email": email }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setActiveConversationId(id);
-        const messages = [];
-        if (data.query) {
-          messages.push({ id: 1, text: data.query, sender: "user" });
+    const handleLoadConversation = async (id: string) => {
+      try {
+        const email = getUserEmail();
+        const res = await fetch(`${API_BASE_URL}/papers-api/conversations/${id}`, {
+          headers: { 
+            "Authorization": `Bearer ${email}`,
+            "Content-Type": "application/json"
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setActiveConversationId(id);
+          const messages = [];
+          if (data.query) {
+            messages.push({ id: 1, text: data.query, sender: "user" });
+          }
+          if (data.explanation) {
+            messages.push({ 
+              id: 2, 
+              text: data.explanation, 
+              sender: "bot",
+              papers: data.papers,
+              showGraphButton: data.papers && data.papers.length > 0
+            });
+          }
+          setInitialMessages(messages);
+          setHasStartedChat(messages.length > 0);
         }
-        if (data.explanation) {
-          messages.push({ 
-            id: 2, 
-            text: data.explanation, 
-            sender: "bot", 
-            papers: data.papers,
-            showGraphButton: data.papers && data.papers.length > 0
-          });
-        }
-        setInitialMessages(messages);
-        setHasStartedChat(messages.length > 0);
+      } catch (e) {
+        console.error("Failed to load conversation", e);
       }
-    } catch (e) {
-      console.error("Failed to load conversation", e);
-    }
-  };
+    };
 
-  const handleDeleteConversation = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); // prevent triggering the load
-    try {
-      const email = getUserEmail();
-      const res = await fetch(`http://localhost:8000/api/v1/research/conversations/${id}?user_email=${encodeURIComponent(email)}`, {
-        method: "DELETE",
-        headers: { "X-User-Email": email }
-      });
-      if (res.ok) {
-        if (activeConversationId === id) {
-          handleNewChat();
+    const handleDeleteConversation = async (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      try {
+        const email = getUserEmail();
+        const res = await fetch(`${API_BASE_URL}/papers-api/conversations/${id}`, {
+          method: "DELETE",
+          headers: { 
+            "Authorization": `Bearer ${email}`,
+            "Content-Type": "application/json"
+          }
+        });
+        if (res.ok || res.status === 204) {
+          if (activeConversationId === id) {
+            handleNewChat();
+          }
+          fetchConversations();
         }
-        fetchConversations();
+      } catch (e) {
+        console.error("Failed to delete conversation", e);
       }
-    } catch (e) {
-      console.error("Failed to delete conversation", e);
-    }
-  };
+    };
 
   const handleNewChat = () => {
     setActiveConversationId(null);

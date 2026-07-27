@@ -177,6 +177,10 @@ export default function GradientChatInput({
     [playChime],
   );
 
+  const API_BASE_URL = typeof window !== "undefined" 
+    ? (process.env.NEXT_PUBLIC_API_BASE_URL || "https://gnitfu5w.function2.insforge.app")
+    : "https://gnitfu5w.function2.insforge.app";
+
   const handleSend = async (overrideText?: string) => {
     const text = overrideText || value.trim();
     if (!text) return;
@@ -194,13 +198,17 @@ export default function GradientChatInput({
     setMessages((prev) => [...prev, { id: botId, text: "", sender: "bot", isLoading: true }]);
 
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/research/query?user_email=${encodeURIComponent(userEmail)}`, {
+      const res = await fetch(`${API_BASE_URL}/papers-api/query`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "X-User-Email": userEmail
+          "Authorization": `Bearer ${userEmail}`
         },
-        body: JSON.stringify({ query: text, model: selectedModel, user_email: userEmail }),
+        body: JSON.stringify({ 
+          query: text, 
+          model: selectedModel, 
+          user_email: userEmail 
+        }),
       });
       
       const data = await res.json();
