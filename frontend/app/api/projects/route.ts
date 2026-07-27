@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json(projects);
-  } catch (err) {
+  } catch (err: any) {
     console.error("Projects GET error:", err);
     return NextResponse.json({ error: err.toString() }, { status: 500 });
   }
