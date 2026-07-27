@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { getWorkspaceDir } from "@/utils/workspace";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
     }
 
-    const workspaceDir = path.join(process.cwd(), ".workspace", id);
+    const workspaceDir = getWorkspaceDir(id);
     
     // Create workspace directory if it doesn't exist
     await fs.mkdir(workspaceDir, { recursive: true });

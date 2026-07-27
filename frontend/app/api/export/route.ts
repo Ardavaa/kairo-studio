@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { exec } from "child_process";
 import fs from "fs/promises";
 import path from "path";
-import os from "os";
+import { getWorkspaceDir, getOrDownloadTypstCli } from "@/utils/workspace";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,11 +14,11 @@ export async function POST(req: NextRequest) {
     }
 
     const id = req.nextUrl.searchParams.get("id") || "default";
-    const workspaceDir = path.join(process.cwd(), ".workspace", id);
-    
+    const workspaceDir = getWorkspaceDir(id);
+
     // Create workspace directory if it doesn't exist
     await fs.mkdir(workspaceDir, { recursive: true });
-    
+
     const typstFilePath = path.join(workspaceDir, "main.typ");
     const pdfOutputPattern = path.join(workspaceDir, "output.pdf");
 
@@ -34,15 +34,21 @@ export async function POST(req: NextRequest) {
       await fs.writeFile(mainFilePath, "", "utf-8");
     }
 
+    const typstCli = await getOrDownloadTypstCli();
+
     // Compile the typst file to PDF
     await new Promise((resolve, reject) => {
-      exec(`typst compile main.typ output.pdf`, { cwd: workspaceDir }, (error, stdout, stderr) => {
-        if (error) {
-          reject(stderr || error.message);
-        } else {
-          resolve(stdout);
+      exec(
+        `"${typstCli}" compile main.typ output.pdf`,
+        { cwd: workspaceDir },
+        (error, stdout, stderr) => {
+          if (error) {
+            reject(stderr || error.message);
+          } else {
+            resolve(stdout);
+          }
         }
-      });
+      );
     });
 
     // Read generated PDF

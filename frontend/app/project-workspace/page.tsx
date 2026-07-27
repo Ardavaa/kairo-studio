@@ -120,7 +120,8 @@ export default function ProjectWorkspacePage() {
     if (!projectToDelete || deleteConfirmText !== projectToDelete.title || isDeleting) return;
 
     setIsDeleting(true);
-    const res = await fetch(`/api/projects/${projectToDelete.id}`, { method: "DELETE" });
+    const email = getUserEmail();
+    const res = await fetch(`/api/projects/${projectToDelete.id}?user_email=${encodeURIComponent(email)}`, { method: "DELETE" });
     if (res.ok) {
       setProjects(prev => prev.filter(p => p.id !== projectToDelete.id));
       setDeleteModalOpen(false);

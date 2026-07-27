@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { getWorkspaceDir } from "@/utils/workspace";
 
 // GET: Search text inside files
 export async function GET(req: NextRequest) {
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ results: [] });
     }
 
-    const workspaceDir = path.join(process.cwd(), ".workspace", id);
+    const workspaceDir = getWorkspaceDir(id);
     await fs.mkdir(workspaceDir, { recursive: true });
 
     async function walk(dir: string, base: string = ""): Promise<string[]> {

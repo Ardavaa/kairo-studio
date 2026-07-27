@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { exec } from "child_process";
 import fs from "fs/promises";
 import path from "path";
-import os from "os";
+import { getWorkspaceDir, getOrDownloadTypstCli } from "@/utils/workspace";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,18 +14,18 @@ export async function POST(req: NextRequest) {
     }
 
     const id = req.nextUrl.searchParams.get("id") || "default";
-    const workspaceDir = path.join(process.cwd(), ".workspace", id);
-    
+    const workspaceDir = getWorkspaceDir(id);
+
     // Create workspace directory if it doesn't exist
     await fs.mkdir(workspaceDir, { recursive: true });
-    
+
     // Write the code to the target file
     const targetFilePath = path.join(workspaceDir, targetFile);
     await fs.writeFile(targetFilePath, code, "utf-8");
 
     // Always compile main.typ
     const mainFilePath = path.join(workspaceDir, "main.typ");
-    
+
     // Check if main.typ exists, if not create it empty
     try {
       await fs.access(mainFilePath);
@@ -33,15 +33,21 @@ export async function POST(req: NextRequest) {
       await fs.writeFile(mainFilePath, "", "utf-8");
     }
 
+    const typstCli = await getOrDownloadTypstCli();
+
     // Run typst compile
     await new Promise((resolve, reject) => {
-      exec(`typst compile main.typ output-{n}.svg`, { cwd: workspaceDir }, (error, stdout, stderr) => {
-        if (error) {
-          reject(stderr || error.message);
-        } else {
-          resolve(stdout);
+      exec(
+        `"${typstCli}" compile main.typ output-{n}.svg`,
+        { cwd: workspaceDir },
+        (error, stdout, stderr) => {
+          if (error) {
+            reject(stderr || error.message);
+          } else {
+            resolve(stdout);
+          }
         }
-      });
+      );
     });
 
     // Read generated SVGs
@@ -63,7 +69,12 @@ export async function POST(req: NextRequest) {
 
     // Save the first page as preview.svg
     if (svgFiles.length > 0) {
-      await fs.copyFile(path.join(workspaceDir, svgFiles[0]), path.join(workspaceDir, "preview.svg")).catch(() => {});
+      await fs
+        .copyFile(
+          path.join(workspaceDir, svgFiles[0]),
+          path.join(workspaceDir, "preview.svg")
+        )
+        .catch(() => {});
     }
 
     // Cleanup ONLY output SVG files, keep images and main.typ

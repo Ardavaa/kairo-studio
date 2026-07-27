@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { getWorkspaceDir } from "@/utils/workspace";
 
 // GET: Read file content
 export async function GET(req: NextRequest) {
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing name" }, { status: 400 });
     }
 
-    const workspaceDir = path.join(process.cwd(), ".workspace", id);
+    const workspaceDir = getWorkspaceDir(id);
     const filePath = path.join(workspaceDir, name);
 
     const buffer = await fs.readFile(filePath);
@@ -47,7 +48,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Missing name" }, { status: 400 });
     }
 
-    const workspaceDir = path.join(process.cwd(), ".workspace", id);
+    const workspaceDir = getWorkspaceDir(id);
     const filePath = path.join(workspaceDir, name);
 
     await fs.writeFile(filePath, content, "utf-8");

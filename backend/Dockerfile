@@ -15,8 +15,8 @@ COPY main.py ./
 # Install dependencies
 RUN uv sync --frozen
 
-# Expose port
-EXPOSE 8000
+# Expose port for Hugging Face Spaces
+EXPOSE 7860
 
-# Run the app
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the app with uv run to ensure venv is used
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]

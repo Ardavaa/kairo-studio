@@ -433,7 +433,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
               if (editorRef.current) {
                 editorRef.current.setValue(text);
                 if (globalLspClient) {
-                  globalLspClient.openFile(`file:///d:/dave-workspace/kairo-studio/frontend/.workspace/${id}/${activeFile}`, text);
+                  globalLspClient.openFile(`file:///workspace/${id}/${activeFile}`, text);
                 }
               }
             }
@@ -491,7 +491,8 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
     ]);
 
     try {
-      const res = await fetch('http://localhost:8000/api/v1/editor/vibe', {
+      const pythonApiUrl = process.env.NEXT_PUBLIC_PYTHON_API_URL || "http://localhost:8000/api/v1";
+      const res = await fetch(`${pythonApiUrl}/editor/vibe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ current_code: code, instruction: userPrompt })
@@ -603,7 +604,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
             if (editorRef.current) {
               editorRef.current.setValue(text);
               if (globalLspClient) {
-                globalLspClient.openFile(`file:///d:/dave-workspace/kairo-studio/frontend/.workspace/${id}/${activeFile}`, text);
+                globalLspClient.openFile(`file:///workspace/${id}/${activeFile}`, text);
               }
             }
           }, 100);
@@ -714,7 +715,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
             if (editorRef.current) {
               editorRef.current.setValue(text);
               if (globalLspClient) {
-                globalLspClient.openFile(`file:///d:/dave-workspace/kairo-studio/frontend/.workspace/${id}/${fileName}`, text);
+                globalLspClient.openFile(`file:///workspace/${id}/${fileName}`, text);
               }
             }
           }
@@ -1610,10 +1611,11 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                     onMount={(editor, monaco) => { 
                       editorRef.current = editor; 
                       
-                      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                      const wsUrl = `${protocol}//localhost:8000/api/v1/ws/lsp/typst`;
+                      const pythonApiUrl = process.env.NEXT_PUBLIC_PYTHON_API_URL || "http://localhost:8000/api/v1";
+                      const wsBase = pythonApiUrl.replace(/^http/, "ws");
+                      const wsUrl = `${wsBase}/ws/lsp/typst`;
                       // Fix project root URI
-                      const rootUri = `file:///d:/dave-workspace/kairo-studio/frontend/.workspace/${id}`;
+                      const rootUri = `file:///workspace/${id}`;
                       const fileUri = `${rootUri}/${activeFile}`;
                       
                       if (globalLspClient) {

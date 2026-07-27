@@ -27,7 +27,7 @@ export default function AIAssistantPage() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [initialMessages, setInitialMessages] = useState<any[]>([]);
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://gnitfu5w.function2.insforge.app";
+  const PYTHON_API_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL || "http://localhost:8000/api/v1";
 
   const getUserEmail = () => {
       if (typeof window === "undefined") return "";
@@ -45,7 +45,7 @@ export default function AIAssistantPage() {
           setConversations([]);
           return;
         }
-        const res = await fetch(`${API_BASE_URL}/papers-api/conversations`, {
+        const res = await fetch(`${PYTHON_API_URL}/research/conversations`, {
           headers: { 
             "Authorization": `Bearer ${email}`,
             "Content-Type": "application/json"
@@ -70,7 +70,7 @@ export default function AIAssistantPage() {
     const handleLoadConversation = async (id: string) => {
       try {
         const email = getUserEmail();
-        const res = await fetch(`${API_BASE_URL}/papers-api/conversations/${id}`, {
+        const res = await fetch(`${PYTHON_API_URL}/research/conversations/${id}`, {
           headers: { 
             "Authorization": `Bearer ${email}`,
             "Content-Type": "application/json"
@@ -104,7 +104,7 @@ export default function AIAssistantPage() {
       e.stopPropagation();
       try {
         const email = getUserEmail();
-        const res = await fetch(`${API_BASE_URL}/papers-api/conversations/${id}`, {
+        const res = await fetch(`${PYTHON_API_URL}/research/conversations/${id}`, {
           method: "DELETE",
           headers: { 
             "Authorization": `Bearer ${email}`,

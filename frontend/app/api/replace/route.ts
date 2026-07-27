@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { getWorkspaceDir } from "@/utils/workspace";
 
 // POST: Replace text in a file
 export async function POST(req: NextRequest) {
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required parameters" }, { status: 400 });
     }
 
-    const workspaceDir = path.join(process.cwd(), ".workspace", id);
+    const workspaceDir = getWorkspaceDir(id);
     const fullPath = path.join(workspaceDir, file);
     
     let content = await fs.readFile(fullPath, "utf-8");

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { getWorkspaceDir } from "@/utils/workspace";
 
 // GET: List all files
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const id = searchParams.get("id") || "default";
-    const workspaceDir = path.join(process.cwd(), ".workspace", id);
+    const workspaceDir = getWorkspaceDir(id);
     
     await fs.mkdir(workspaceDir, { recursive: true });
 
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing name" }, { status: 400 });
     }
 
-    const workspaceDir = path.join(process.cwd(), ".workspace", id);
+    const workspaceDir = getWorkspaceDir(id);
     const targetPath = path.join(workspaceDir, name);
 
     if (isFolder) {
@@ -79,7 +80,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Missing oldName or newName" }, { status: 400 });
     }
 
-    const workspaceDir = path.join(process.cwd(), ".workspace", id);
+    const workspaceDir = getWorkspaceDir(id);
     const oldPath = path.join(workspaceDir, oldName);
     const newPath = path.join(workspaceDir, newName);
 
@@ -103,7 +104,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Missing name" }, { status: 400 });
     }
 
-    const workspaceDir = path.join(process.cwd(), ".workspace", id);
+    const workspaceDir = getWorkspaceDir(id);
     const filePath = path.join(workspaceDir, name);
 
     await fs.unlink(filePath);
