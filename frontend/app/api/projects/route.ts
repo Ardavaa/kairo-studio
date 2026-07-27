@@ -21,19 +21,31 @@ export async function GET(req: NextRequest) {
       return NextResponse.json([]);
     }
 
-    // Fetch from InsForge database
+    // Fetch from InsForge database - match actual schema: user_id, user_email, name, etc.
     const { data, error } = await insforge.database
       .from("projects")
       .select("*")
       .eq("user_email", userEmail)
-      .order("updated", { ascending: false });
+      .order("updated_at", { ascending: false });
 
     if (error) {
       console.error("InsForge error:", error);
       return NextResponse.json([]);
     }
 
-    return NextResponse.json(data || []);
+    // Transform to frontend expected format
+    const projects = (data || []).map((p: any) => ({
+      id: p.id,
+      title: p.name,
+      author: p.user_id || p.user_email?.split("@")[0] || "You",
+      user_email: p.user_email,
+      description: p.description,
+      created_at: p.created_at,
+      updated: p.updated_at,
+      type: "document"
+    }));
+
+    return NextResponse.json(projects);
   } catch (err) {
     console.error("Projects GET error:", err);
     return NextResponse.json({ error: err.toString() }, { status: 500 });
@@ -44,6 +56,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const title = body.title || "Untitled Document";
+    const description = body.description || "";
     const template = body.template || "default";
     const duplicateFrom = body.duplicateFrom;
     const userEmail = body.user_email || "";
@@ -67,11 +80,13 @@ export async function POST(req: NextRequest) {
       }
 
       const newProject = {
-        ...origProject,
         id: newId,
-        title: title,
+        user_id: origProject.user_id,
+        name: title,
+        description: origProject.description || "",
         user_email: userEmail,
-        updated: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
       const { error: insertError } = await insforge.database
@@ -82,16 +97,26 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: insertError.message }, { status: 500 });
       }
 
-      return NextResponse.json(newProject);
+      return NextResponse.json({
+        id: newProject.id,
+        title: newProject.name,
+        author: newProject.user_id || userEmail.split("@")[0],
+        user_email: newProject.user_email,
+        description: newProject.description,
+        created_at: newProject.created_at,
+        updated: newProject.updated_at,
+        type: "document"
+      });
     }
 
     const newProject = {
       id: newId,
-      title: title,
-      author: userEmail.split("@")[0],
+      user_id: userEmail.split("@")[0],
+      name: title,
+      description: description,
       user_email: userEmail,
-      updated: new Date().toISOString(),
-      type: "document"
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     const { error: insertError } = await insforge.database
@@ -102,7 +127,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
-    return NextResponse.json(newProject);
+    return NextResponse.json({
+      id: newProject.id,
+      title: newProject.name,
+      author: newProject.user_id,
+      user_email: newProject.user_email,
+      description: newProject.description,
+      created_at: newProject.created_at,
+      updated: newProject.updated_at,
+      type: "document"
+    });
   } catch (err: any) {
     console.error("Projects POST error:", err);
     return NextResponse.json({ error: err.toString() }, { status: 500 });
