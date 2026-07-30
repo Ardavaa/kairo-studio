@@ -39,6 +39,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 @app.websocket("/api/v1/ws/lsp/typst")
+@app.websocket("/ws/lsp/typst")
 async def typst_lsp_endpoint(websocket: WebSocket):
     await websocket.accept()
     

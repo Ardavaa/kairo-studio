@@ -52,7 +52,7 @@ export class TypstLspClient {
       };
 
       this.ws.onerror = (e) => {
-        console.error("LSP WebSocket error", e);
+        console.warn("LSP WebSocket not connected or unavailable");
       };
 
       this.ws.onclose = () => {
@@ -121,59 +121,40 @@ export class TypstLspClient {
       textDocument: {
         uri: this.fileUri,
         languageId: "typst",
-        version: this.documentVersion,
-        text: this.editor.getValue()
-      }
-    });
-  }
-
-  public didChange() {
-    if (!this.initialized || !this.editor) return;
-
-    const content = this.editor.getValue();
-    this.sendNotification("textDocument/didChange", {
-      textDocument: {
-        uri: this.fileUri,
-        version: ++this.documentVersion
-      },
-      contentChanges: [{
-        text: content
-      }]
-    });
-  }
-
-  public openFile(newFileUri: string, content: string) {
-    if (!this.initialized) {
-      this.fileUri = newFileUri; // will be opened on initialize
-      return;
-    }
-
-    // Close old
-    this.sendNotification("textDocument/didClose", {
-      textDocument: {
-        uri: this.fileUri
-      }
-    });
-
-    this.fileUri = newFileUri;
-    this.documentVersion = 1;
-
-    // Open new
-    this.sendNotification("textDocument/didOpen", {
-      textDocument: {
-        uri: this.fileUri,
-        languageId: newFileUri.endsWith('.bib') ? 'bibtex' : 'typst',
-        version: this.documentVersion,
-        text: content
+        version: 1,
+        text: this.initialText
       }
     });
   }
 
   public isConnected(): boolean {
-    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+    return !!this.ws && this.ws.readyState === WebSocket.OPEN;
   }
 
-  public async getCompletions(position: any, context?: any) {
+  public didChange() {
+    if (!this.isConnected() || !this.editor) return;
+    this.sendNotification("textDocument/didChange", {
+      textDocument: {
+        uri: this.fileUri,
+        version: 2
+      },
+      contentChanges: [
+        {
+          text: this.editor.getValue()
+        }
+      ]
+    });
+  }
+
+  public openFile(fileUri: string, text: string) {
+    this.fileUri = fileUri;
+    this.initialText = text;
+    if (this.isConnected()) {
+      this.didOpen();
+    }
+  }
+
+  public async getCompletion(position: any, context?: any) {
     if (!this.isConnected()) return null;
     const params: any = {
       textDocument: { uri: this.fileUri },
