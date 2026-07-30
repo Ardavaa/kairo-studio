@@ -27,23 +27,28 @@ def get_current_user_email(
         return email.strip()
 
     if authorization and authorization.startswith("Bearer "):
-        token = authorization.replace("Bearer ", "")
-        try:
-            import base64
-            import json
-            parts = token.split(".")
-            if len(parts) == 3:
-                payload = parts[1]
-                padding = 4 - (len(payload) % 4)
-                if padding != 4:
-                    payload += "=" * padding
-                decoded = base64.urlsafe_b64decode(payload)
-                payload_data = json.loads(decoded)
-                email_from_jwt = payload_data.get("email")
-                if email_from_jwt and email_from_jwt.strip() not in ("null", "undefined", ""):
-                    return email_from_jwt.strip()
-        except Exception:
-            pass
+        token = authorization.replace("Bearer ", "").strip()
+        if token and token not in ("null", "undefined", ""):
+            # If token is a direct email address
+            if "@" in token and not token.startswith("eyJ"):
+                return token
+
+            try:
+                import base64
+                import json
+                parts = token.split(".")
+                if len(parts) == 3:
+                    payload = parts[1]
+                    padding = 4 - (len(payload) % 4)
+                    if padding != 4:
+                        payload += "=" * padding
+                    decoded = base64.urlsafe_b64decode(payload)
+                    payload_data = json.loads(decoded)
+                    email_from_jwt = payload_data.get("email")
+                    if email_from_jwt and email_from_jwt.strip() not in ("null", "undefined", ""):
+                        return email_from_jwt.strip()
+            except Exception:
+                pass
 
     raise HTTPException(
         status_code=401,

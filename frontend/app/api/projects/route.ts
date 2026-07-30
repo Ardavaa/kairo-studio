@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "user_email is required" }, { status: 400 });
     }
 
-    const newId = `proj_${Date.now()}`;
+    const newId = crypto.randomUUID();
 
     if (duplicateFrom) {
       // Get original project
@@ -79,9 +79,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Source project not found" }, { status: 404 });
       }
 
-      const newProject = {
+      const newProject: any = {
         id: newId,
-        user_id: origProject.user_id,
         name: title,
         description: origProject.description || "",
         user_email: userEmail,
@@ -94,13 +93,14 @@ export async function POST(req: NextRequest) {
         .insert([newProject]);
 
       if (insertError) {
-        return NextResponse.json({ error: insertError.message }, { status: 500 });
+        console.error("InsForge duplicate insert error:", insertError);
+        return NextResponse.json({ error: insertError.message || JSON.stringify(insertError) }, { status: 500 });
       }
 
       return NextResponse.json({
         id: newProject.id,
         title: newProject.name,
-        author: newProject.user_id || userEmail.split("@")[0],
+        author: userEmail.split("@")[0],
         user_email: newProject.user_email,
         description: newProject.description,
         created_at: newProject.created_at,
@@ -109,9 +109,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const newProject = {
+    const newProject: any = {
       id: newId,
-      user_id: userEmail.split("@")[0],
       name: title,
       description: description,
       user_email: userEmail,
@@ -124,13 +123,14 @@ export async function POST(req: NextRequest) {
       .insert([newProject]);
 
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      console.error("InsForge insert error:", insertError);
+      return NextResponse.json({ error: insertError.message || JSON.stringify(insertError) }, { status: 500 });
     }
 
     return NextResponse.json({
       id: newProject.id,
       title: newProject.name,
-      author: newProject.user_id,
+      author: userEmail.split("@")[0],
       user_email: newProject.user_email,
       description: newProject.description,
       created_at: newProject.created_at,

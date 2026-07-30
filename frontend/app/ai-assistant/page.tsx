@@ -30,13 +30,24 @@ export default function AIAssistantPage() {
   const PYTHON_API_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL || "http://localhost:8000/api/v1";
 
   const getUserEmail = () => {
-      if (typeof window === "undefined") return "";
-      try {
-        const savedUser = localStorage.getItem("kairo_user");
-        if (savedUser) return JSON.parse(savedUser).email || "";
-      } catch (e) {}
-      return "";
-    };
+    if (typeof window === "undefined") return "guest@kairo.local";
+    try {
+      const savedUser = localStorage.getItem("kairo_user");
+      if (savedUser) {
+        if (savedUser.includes("@") && !savedUser.startsWith("{")) {
+          return savedUser.trim();
+        }
+        const parsed = JSON.parse(savedUser);
+        const email =
+          parsed.email ||
+          parsed.user_email ||
+          parsed.user?.email ||
+          (typeof parsed === "string" && parsed.includes("@") ? parsed : null);
+        if (email) return String(email).trim();
+      }
+    } catch (e) {}
+    return "guest@kairo.local";
+  };
 
     const fetchConversations = async () => {
       try {

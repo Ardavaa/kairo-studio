@@ -197,17 +197,19 @@ export default function GradientChatInput({
     const botId = idRef.current++;
     setMessages((prev) => [...prev, { id: botId, text: "", sender: "bot", isLoading: true }]);
 
+    const effectiveEmail = userEmail && userEmail.trim() ? userEmail.trim() : "guest@kairo.local";
+
     try {
       const res = await fetch(`${PYTHON_API_URL}/research/query`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${userEmail}`
+          "Authorization": `Bearer ${effectiveEmail}`
         },
         body: JSON.stringify({ 
           query: text, 
           model: selectedModel, 
-          user_email: userEmail 
+          user_email: effectiveEmail 
         }),
       });
       
